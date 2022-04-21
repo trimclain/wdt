@@ -11,7 +11,7 @@ die() {
 # Usage info
 show_help() {
 cat << EOF
-Usage: ${0##*/} [-hsa] [-n DOMNAME] [-p PORTNUM]
+Usage: ${0##*/} [-hsad] [-n DOMNAME] [-p PORTNUM]
 Setup everything to deploy a website.
 
      -h, --help             display this help menu
@@ -19,6 +19,7 @@ Setup everything to deploy a website.
      -p, --port PORTNUM     pass the port you'll host your website on
      -s, --secure           enable the ssl certificate using certbot
      -a, --autorenew        schedule automatic renewal of the certificate using crontab
+     -d, --delete           undo everything wdt has done for a specified domain
 EOF
 }
 
@@ -28,6 +29,7 @@ name=
 port=
 enable_ssl=false
 autorenew_ssl=false
+delete_domain=false
 
 while :; do
     case $1 in
@@ -69,6 +71,9 @@ while :; do
         -a|--autorenew)
             autorenew_ssl=true
             ;;
+        -d|--delete)
+            delete_domain=true
+            ;;
         --)              # End of all options.
             shift
             break
@@ -86,6 +91,20 @@ done
 # Rest of the program here.
 # If there are input files (for example) that follow the options, they
 # will remain in the "$@" positional parameters.
+
+# TODO:
+if $delete_domain; then
+    read -p "Are you sure you want to delete $name? [y|n] " -n 1 -r
+    echo    # (optional) move to a new line
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -n "Deleting $name... "
+        sleep 1 # I know this one's unnecessary but is feels more fun like this
+        echo "Done"
+        exit
+    else
+        exit 0
+    fi
+fi
 
 # if --name and --port were not provided, error out
 if [ ! "$name" ] || [ ! "$port" ]; then
@@ -157,7 +176,7 @@ else
         sudo ufw allow http
         sudo ufw allow https
     else
-        echo "[ufw]: Firewall is enabled Making sure ports 22, 80 and 443 are allowed."
+        echo "[ufw]: Firewall is enabled. Making sure ports 22, 80 and 443 are allowed."
         sudo ufw allow ssh
         sudo ufw allow http
         sudo ufw allow https
@@ -217,7 +236,7 @@ else
         sudo certbot --nginx -d $name -d www.$name
     fi
 
-    # TODO:
+    # TODO: https://stackoverflow.com/questions/878600/how-to-create-a-cron-job-using-bash-automatically-without-the-interactive-editor
     # Crontab part
     if $autorenew_ssl; then
         echo "SSL will be scheduled to autorenew"
