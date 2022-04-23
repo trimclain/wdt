@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-# name="melkumyan-armen.com"
-# port=5000
+# Colors (maybe someday)
+# GREEN='\033[0;32m'
+# CYAN='\033[0;35m'
+# NC='\033[0m' # No Color
 
 die() {
     printf '%s\n' "$1" >&2
@@ -11,7 +13,7 @@ die() {
 # Usage info
 show_help() {
 cat << EOF
-Usage: ${0##*/} [-hsad] [-n DOMNAME] [-p PORTNUM]
+Usage: ${0##*/} [-hdsa] [-n DOMNAME] [-p PORTNUM]
 Setup everything to deploy a website.
 
      -h, --help             display this help menu
@@ -92,13 +94,36 @@ done
 # If there are input files (for example) that follow the options, they
 # will remain in the "$@" positional parameters.
 
-# TODO:
 if $delete_domain; then
+
+    if [ ! "$name" ]; then
+        die 'ERROR: Please provide the DOMAIN to delete.'
+    fi
+
     read -p "Are you sure you want to delete $name? [y|n] " -n 1 -r
     echo    # (optional) move to a new line
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo -n "Deleting $name... "
-        sleep 1 # I know this one's unnecessary but is feels more fun like this
+
+        if [ -f /etc/nginx/sites-available/$name ]; then
+            echo "Deleting $name... "
+            sudo rm /etc/nginx/sites-available/$name
+        else
+            die "ERROR: $name entry not found."
+        fi
+        # -L check if there is a symlink, no matter broken or not
+        if [ -L /etc/nginx/sites-enabled/$name ]; then
+            sudo rm /etc/nginx/sites-enabled/$name
+        fi
+        if [ -d /var/www/$name ]; then
+            sudo rm -r /var/www/$name
+        fi
+        sudo systemctl restart nginx
+
+        # TODO: for now -d -s is required, rewrite it to autodetect if certificate is there
+        if $enable_ssl; then
+            sudo certbot delete --cert-name $name
+        fi
+
         echo "Done"
         exit
     else
