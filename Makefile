@@ -8,10 +8,12 @@ help: ## Prints this help menu
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 install: ## Installs wdt
-	@if [[ ! :$$PATH: == *":$$HOME/.local/bin:"* ]]; \
-		then echo 'Please add ~/.local/bin to $$PATH.' && echo *":$$HOME/.local/bin:"*; \
+	@if [[ ! -d $$HOME/.local/bin ]]; then mkdir -p $$HOME/.local/bin && \
+		echo 'Created ~/.local/bin. Please add it to $$PATH'; \
+		else if [[ ! :$$PATH: == *":$$HOME/.local/bin:"* ]]; \
+		then echo 'Please add ~/.local/bin to $$PATH.'; \
 		else cp ./wdt $$HOME/.local/bin/ && echo "WDT installed successfully."; \
-		fi
+		fi; fi
 
 uninstall: ## Uninstalls wdt
 	@if [[ -f $$HOME/.local/bin/wdt ]]; then rm $$HOME/.local/bin/wdt && \
