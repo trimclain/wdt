@@ -8,9 +8,15 @@
 # CYAN='\033[0;35m'
 # NC='\033[0m' # No Color
 
+# Error out
 die() {
     printf '%s\n' "$1" >&2
     exit 1
+}
+
+# Run as sudo but extend $PATH to have npm and node available
+sudop() {
+    sudo -u $(logname) bash -c "PATH=$PATH:/home/$(logname)/.n/bin/; $1"
 }
 
 # Usage info
@@ -35,7 +41,6 @@ port=
 enable_ssl=false
 autorenew_ssl=false
 delete_domain=false
-npm=/home/$(logname)/.n/bin/npm
 
 while :; do
     case $1 in
@@ -162,7 +167,7 @@ else
     if [ ! -f /home/$(logname)/.n/bin/pm2 ]; then
         echo -n "[pm2]: Installing pm2, a process manager for node.js... "
         # make sudo use $PATH instead of $SECURE_PATH, otherwise npm won't work
-        sudo env "PATH=$PATH" npm install --global pm2 > /dev/null
+        sudop "npm install --global pm2" > /dev/null
         echo "Done"
     else
         echo "[pm2]: PM2 process manager is already installed"
@@ -191,12 +196,12 @@ else
     # npm install part
     if [ ! -f ./package.json ]; then
         echo -n "[npm]: Initializing npm and installing Express.js... "
-        sudo env "PATH=$PATH" npm init -y > /dev/null
+        sudop "npm init -y" > /dev/null
         npm install express > /dev/null
         echo "Done"
     elif [ ! -d ./node_modules/express ]; then
         echo -n "[npm]: Installing Express.js... "
-        sudo env "PATH=$PATH" npm install express > /dev/null
+        sudop "npm install express" > /dev/null
         echo "Done"
     fi
 
