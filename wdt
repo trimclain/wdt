@@ -157,7 +157,7 @@ else
     # Install nodejs
     if [ ! -d ~/.n ]; then
         echo "[nodejs]: Installing n version manager with node.js LTS... "
-        curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
+        sudo -u $(logname) curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
         echo "Done"
     else
         echo "[nodejs]: Node is already installed"
