@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Run this script as sudo
+# Run this script as root       # TODO: Delete every sudo, since we're root
 [ "$UID" -eq 0 ] || exec sudo bash "$0" "$@"
 
 # Colors (maybe someday)
@@ -136,7 +136,7 @@ if $delete_domain; then
             echo "Done"
         fi
 
-        echo "The setup for $name for successfully deleted."
+        echo "The setup for $name was successfully deleted."
         exit
     else
         exit 0
@@ -154,13 +154,13 @@ else
         curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
         echo "Done"
     else
-        echo "[nodejs]: Nodeis already installed"
+        echo "[nodejs]: Node is already installed"
     fi
 
     # Install pm2
     if [ ! -f ~/.n/bin/pm2 ]; then
         echo -n "[pm2]: Installing pm2, a process manager for node.js... "
-        npm install --global pm2 > /dev/null
+        sudo $(which npm) install --global pm2 > /dev/null
         echo "Done"
     else
         echo "[pm2]: PM2 process manager is already installed"
@@ -189,12 +189,12 @@ else
     # npm install part
     if [ ! -f ./package.json ]; then
         echo -n "[npm]: Initializing npm and installing Express.js... "
-        npm init -y > /dev/null
+        sudo $(which npm) init -y > /dev/null
         npm install express > /dev/null
         echo "Done"
     elif [ ! -d ./node_modules/express ]; then
         echo -n "[npm]: Installing Express.js... "
-        npm install express > /dev/null
+        sudo $(which npm) install express > /dev/null
         echo "Done"
     fi
 
@@ -250,6 +250,7 @@ else
         echo -n "Creating /etc/nginx/sites-available/$name and adding the configuration to redirect to port $port... "
         nginx_sites_available_file_data="# Virtual Host configuration for $name\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $name www.$name;\n\n\troot /var/www/$name/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$port; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
         # create new server file and correct it's permissions and ownership
+        # TODO: since we're root now this can probably be changed
         echo -e $nginx_sites_available_file_data > $name
         sudo mv $name /etc/nginx/sites-available/
         sudo chown -R root:root /etc/nginx/sites-available/$name
