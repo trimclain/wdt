@@ -13,7 +13,7 @@ die() {
 # Usage info
 show_help() {
 cat << EOF
-Usage: ${0##*/} [-hdsa] [-n DOMNAME] [-p PORTNUM]
+Usage: ${0##*/} [OPTIONS...] [-n DOMNAME] [-p PORTNUM]
 Setup everything to deploy a website.
 
      -h, --help             display this help menu
@@ -81,7 +81,9 @@ while :; do
             break
             ;;
         -?*)
-            printf 'WARNING: Unknown option (ignored): %s\n' "$1" >&2
+            # printf 'WARNING\: Unknown option (ignored): %s\n' "$1" >&2
+            echo -e "ERROR: Invalid option -- \"$1\". Try \"wdt --help\" for more information."
+            exit 1
             ;;
         *)               # Default case: No more options, so break out of the loop.
             break
@@ -105,26 +107,33 @@ if $delete_domain; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
 
         if [ -f /etc/nginx/sites-available/$name ]; then
-            echo -n "Deleting $name... "
+            echo -n "Deleting /etc/nginx/sites-available/$name... "
             sudo rm /etc/nginx/sites-available/$name
+            echo "Done"
         else
             die "ERROR: $name entry not found."
         fi
         # -L check if there is a symlink, no matter broken or not
         if [ -L /etc/nginx/sites-enabled/$name ]; then
+            echo -n "Deleting the symlink /etc/nginx/sites-enabled/$name... "
             sudo rm /etc/nginx/sites-enabled/$name
+            echo "Done"
         fi
         if [ -d /var/www/$name ]; then
+            echo -n "Deleting /var/www/$name... "
             sudo rm -r /var/www/$name
+            echo "Done"
         fi
         sudo systemctl restart nginx
 
         # TODO: for now -d -s is required, rewrite it to autodetect if certificate is there
         if $enable_ssl; then
+            echo -n "Deleting the SSL certificate for $name... "
             sudo certbot delete --cert-name $name
+            echo "Done"
         fi
 
-        echo "Done"
+        echo "The setup for $name for successfully deleted."
         exit
     else
         exit 0
@@ -133,7 +142,7 @@ fi
 
 # if --name and --port were not provided, error out
 if [ ! "$name" ] || [ ! "$port" ]; then
-    die 'ERROR: Please provide both the DOMAIN and the PORT. Use "wdt --help" to see the help menu.'
+    die 'ERROR: Please provide both the DOMAIN and the PORT. Try "wdt --help" for more information.'
 else
     # ---------------------------- Installing stuff ---------------------------
     # Install nodejs
