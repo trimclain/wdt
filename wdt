@@ -35,6 +35,7 @@ port=
 enable_ssl=false
 autorenew_ssl=false
 delete_domain=false
+npm=/home/$(logname)/.n/bin/npm
 
 while :; do
     case $1 in
@@ -158,9 +159,10 @@ else
     fi
 
     # Install pm2
-    if [ ! -f ~/.n/bin/pm2 ]; then
+    if [ ! -f /home/$(logname)/.n/bin/pm2 ]; then
         echo -n "[pm2]: Installing pm2, a process manager for node.js... "
-        sudo $(which npm) install --global pm2 > /dev/null
+        # don't run npm as root
+        sudo -u $(logname) $npm install --global pm2 > /dev/null
         echo "Done"
     else
         echo "[pm2]: PM2 process manager is already installed"
@@ -189,12 +191,12 @@ else
     # npm install part
     if [ ! -f ./package.json ]; then
         echo -n "[npm]: Initializing npm and installing Express.js... "
-        sudo $(which npm) init -y > /dev/null
+        sudo -u $(logname) $npm init -y > /dev/null
         npm install express > /dev/null
         echo "Done"
     elif [ ! -d ./node_modules/express ]; then
         echo -n "[npm]: Installing Express.js... "
-        sudo $(which npm) install express > /dev/null
+        sudo -u $(logname) $npm install express > /dev/null
         echo "Done"
     fi
 
