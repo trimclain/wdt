@@ -9,7 +9,7 @@ help: ## Prints this help menu
 
 install: ## Installs wdt
 	@if [[ ! -d $$HOME/.local/bin ]]; then mkdir -p $$HOME/.local/bin && \
-		echo 'Created ~/.local/bin. Please add it to $$PATH'; \
+		echo 'Created ~/.local/bin. Please add it to $$PATH and run "make install" again.'; \
 		else if [[ ! :$$PATH: == *":$$HOME/.local/bin:"* ]]; \
 		then echo 'Please add ~/.local/bin to $$PATH.'; \
 		else cp ./wdt $$HOME/.local/bin/ && echo "WDT installed successfully."; \
