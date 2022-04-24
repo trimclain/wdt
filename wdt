@@ -151,8 +151,7 @@ if $delete_domain; then
         fi
         sudo systemctl restart nginx
 
-        # TODO: for now -d -s is required, rewrite it to autodetect if certificate is there
-        if $enable_ssl; then
+        if [[ $(sudo certbot certificates 2> /dev/null) == *"$name"* ]]; then
             echo -n "Deleting the SSL certificate for $name... "
             sudo certbot delete --cert-name $name &> /dev/null
             echo "Done"
@@ -317,4 +316,4 @@ if $autorenew_ssl; then
     echo "SSL will be scheduled to autorenew"
 fi
 
-echo "The setup for $name is complete. Use \"pm2 start app\" to start your app.js."
+echo "The setup for $name is complete. Use \"pm2 start app.js\" to start your app.js."
