@@ -22,13 +22,14 @@ sudop() {
 # Usage info
 show_help() {
 cat << EOF
-Usage: ${0##*/} [OPTIONS...] [-n DOMNAME] [-p PORTNUM]
+Usage: ${0##*/} [OPTIONS...] [-n DOMNAME] [-p PORTNUM] [-e EMAIL]
 Setup everything to deploy a website.
 
      -h, --help             display this help menu
      -n, --name DOMNAME     pass the name of the domain you want to use
      -p, --port PORTNUM     pass the port you'll host your website on
      -s, --secure           enable the ssl certificate using certbot
+     -e, --email EMAIL      pass the email for the ssl certificate for registration and recovery contact
      -a, --autorenew        schedule automatic renewal of the certificate using crontab
      -d, --delete           undo everything wdt has done for a specified domain
 EOF
@@ -38,6 +39,7 @@ EOF
 # This ensures we are not contaminated by variables from the environment.
 name=
 port=
+email=
 enable_ssl=false
 autorenew_ssl=false
 delete_domain=false
@@ -75,6 +77,20 @@ while :; do
             ;;
         --port=)         # Handle the case of an empty --name=
             die 'ERROR: "--port" requires a non-empty option argument.'
+            ;;
+        -e|--email)       # Takes an option argument; ensure it has been specified.
+            if [ "$2" ]; then
+                email=$2
+                shift
+            else
+                die 'ERROR: "--email" requires a non-empty option argument.'
+            fi
+            ;;
+        --email=?*)
+            email=${1#*=} # Delete everything up to "=" and assign the remainder.
+            ;;
+        --email=)         # Handle the case of an empty --name=
+            die 'ERROR: "--email" requires a non-empty option argument.'
             ;;
         -s|--secure)
             enable_ssl=true
@@ -259,7 +275,6 @@ else
         echo -n "Creating /etc/nginx/sites-available/$name and adding the configuration to redirect to port $port... "
         nginx_sites_available_file_data="# Virtual Host configuration for $name\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $name www.$name;\n\n\troot /var/www/$name/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$port; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
         # create new server file and correct it's permissions and ownership
-        # TODO: since we're root now this can probably be changed
         echo -e $nginx_sites_available_file_data > $name
         sudo mv $name /etc/nginx/sites-available/
         sudo chown -R root:root /etc/nginx/sites-available/$name
@@ -279,6 +294,11 @@ else
 
     # Certbot part
     if $enable_ssl; then
+
+        if [ ! "$email" ]; then
+            die 'ERROR: Please provide the EMAIL to conncet to the certificate for registration and recovery contact.'
+        fi
+
         # Install certbot with nginx extension
         if [ ! -f /usr/bin/certbot ]; then
             echo -n "[certbot]: Installing Certbot from Let's Encrypt with the nginx plugin... "
@@ -293,9 +313,10 @@ else
         fi
 
         # Enable SSL
-        echo "[certbot]: Installing the certificate for $name... "
-        sudo certbot --nginx -d $name -d www.$name
-        echo "[certbot]: The certificate for $name was successfully installed"
+        echo -n "[certbot]: Installing the certificate for $name... "
+        sudo certbot --nginx -d $name -d www.$name --email $email --agree-tos --no-eff-email --redirect > /dev/null
+        # echo "[certbot]: The certificate for $name was successfully installed"
+        echo "Done"
     fi
 
     # TODO: https://stackoverflow.com/questions/878600/how-to-create-a-cron-job-using-bash-automatically-without-the-interactive-editor
