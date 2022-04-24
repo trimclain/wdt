@@ -20,6 +20,7 @@ sudop() {
 }
 
 # Usage info
+# TODO: add --purge to also uninstall every install software
 show_help() {
 cat << EOF
 Usage: ${0##*/} [OPTIONS...] [-n DOMNAME] [-p PORTNUM] [-e EMAIL]
@@ -120,6 +121,7 @@ done
 # Rest of the program here.
 # If there are input files (for example) that follow the options, they
 # will remain in the "$@" positional parameters.
+# TODO: if there's still $1, assing it to $name
 
 if $delete_domain; then
 
@@ -151,11 +153,18 @@ if $delete_domain; then
         fi
         sudo systemctl restart nginx
 
+        # check if ssl certificate exists
         if [[ $(sudo certbot certificates 2> /dev/null) == *"$name"* ]]; then
             echo -n "Deleting the SSL certificate for $name... "
             sudo certbot delete --cert-name $name &> /dev/null
             echo "Done"
         fi
+
+        # delete the cron job if it exists
+        tmpfile=$(mktemp)
+        crontab -l > $tmpfile
+        sed -i "/certbot renew --quiet/d" $tmpfile
+        crontab $tmpfile && rm -f $tmpfile
 
         echo "The setup for $name was successfully deleted."
         exit
@@ -284,8 +293,9 @@ if [ ! -d /var/www/$name/html ]; then
     # uncomment one line in order to avoid a possible hash bucket memory problem that can arise from adding additional server names
     sudo sed -i "s|# server_names_hash_bucket_size 64;|server_names_hash_bucket_size 64;|g" /etc/nginx/nginx.conf
     # restart nginx
-    echo "Restarting nginx... "
+    echo -n "Restarting nginx... "
     sudo systemctl restart nginx
+    echo "Done"
 fi
 
 # Certbot part
@@ -310,10 +320,17 @@ if $enable_ssl; then
     echo "Done"
 fi
 
-# TODO: https://stackoverflow.com/questions/878600/how-to-create-a-cron-job-using-bash-automatically-without-the-interactive-editor
 # Crontab part
 if $autorenew_ssl; then
-    echo "SSL will be scheduled to autorenew"
+    echo -n "Creating a cron job for certbot to renew the certificate..."
+    tmpfile=$(mktemp)
+    #write out current crontab
+    crontab -l > $tmpfile
+    #echo new cron into cron file
+    echo "0 5 * * * /usr/bin/certbot renew --quiet" >> $tmpfile
+    #install new cron file
+    crontab "$tmpfile" && rm -f "$tmpfile"
+    echo "Done"
 fi
 
 echo "The setup for $name is complete. Use \"pm2 start app.js\" to start your app.js."
