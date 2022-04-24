@@ -165,165 +165,162 @@ if $delete_domain; then
     fi
 fi
 
-# if --name and --port were not provided, error out
+# if the necessary arguments are missing, error out
 if [ ! "$name" ] || [ ! "$port" ]; then
     die 'ERROR: Please provide both the DOMAIN and the PORT. Try "wdt --help" for more information.'
-elif $enable_ssl; then
-    if [ ! "$email" ]; then
-        die 'ERROR: Please provide the EMAIL to conncet to the certificate for registration and recovery contact.'
-    fi
-else
-    # ---------------------------- Installing stuff ---------------------------
-    # Install nodejs
-    if [ ! -d ~/.n ]; then
-        echo -n "[nodejs]: Installing n version manager with node.js LTS... "
-        curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
-        # fix the ownership problem
-        sudo chown -R $(logname):$(logname) /home/$(logname)/.n
-        echo "Done"
-    else
-        echo "[nodejs]: Node is already installed"
-    fi
-
-    # Install pm2
-    if [ ! -f /home/$(logname)/.n/bin/pm2 ]; then
-        echo -n "[pm2]: Installing pm2, a process manager for node.js... "
-        # make sudo use $PATH instead of $SECURE_PATH, otherwise npm won't work
-        sudop "npm install --global pm2 &> /dev/null"
-        echo "Done"
-    else
-        echo "[pm2]: PM2 process manager is already installed"
-    fi
-
-    # Install ufw
-    if [ ! -f /usr/sbin/ufw ]; then
-        echo -n "[ufw]: Installing ufw -- the Uncomplicated Firewall... "
-        sudo apt install ufw -y > /dev/null
-        echo "Done"
-    else
-        echo "[ufw]: Uncomplicated Firewall is already installed"
-    fi
-
-    # Install nginx
-    if [ ! -f /usr/sbin/nginx ]; then
-        echo -n "[nginx]: Installing nginx... "
-        sudo apt install nginx -y > /dev/null
-        echo "Done"
-    else
-        echo "[nginx]: Nginx is already installed"
-    fi
-
-    # ---------------------------- Actual commands ----------------------------
-
-    # npm install part
-    if [ ! -f ./package.json ]; then
-        echo -n "[npm]: Initializing npm and installing Express.js... "
-        sudop "npm init -y > /dev/null"
-        sudop "npm install express &> /dev/null"
-        echo "Done"
-    elif [ ! -d ./node_modules/express ]; then
-        echo -n "[npm]: Installing Express.js... "
-        sudop "npm install express &> /dev/null"
-        echo "Done"
-    fi
-
-    # UFW
-    # check if it's german or english language to get the correct ufw status info
-    if [[ $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"de"* ]]; then
-        ufwstatus="Inaktiv"
-    elif [[ $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"en"* ]]; then
-        ufwstatus="inactive"
-    fi
-    # make sure firewall is enabled and allows ssh, http and https
-    if sudo ufw status | grep -qw $ufwstatus; then
-        echo -n "[ufw]: Enabling ufw and allowing ssh (22), http (80) and https (443)... "
-        sudo ufw enable > /dev/null
-        sudo ufw allow ssh > /dev/null
-        sudo ufw allow http > /dev/null
-        sudo ufw allow https > /dev/null
-        echo "Done"
-    else
-        echo -n "[ufw]: Firewall is enabled. Allowing ssh (22), http (80) and https (443)... "
-        sudo ufw allow ssh > /dev/null
-        sudo ufw allow http > /dev/null
-        sudo ufw allow https > /dev/null
-        echo "Done"
-    fi
-
-    # Nginx part
-    if [ ! -d /var/www/$name/html ]; then
-
-        ####### optional start #######
-        # This parts creates the domain folder in /var/www. This isn't necessary,
-        # if the user will not store files there. This is still made to do it the
-        # correct way and allow user to change their mind and use this folder later
-        #######
-
-        # create the directories for the site
-        sudo mkdir -p /var/www/$name/html
-        echo -n "Creating a directory /var/www/$name/html... "
-        # assing the correct ownership
-        # using $(logname) allows to force run this script with sudo and still get the username
-        sudo chown -R $(logname):$(logname) /var/www/$name/html
-        # make permissions of our web roots are correct
-        sudo chmod -R 755 /var/www
-        echo "Done"
-        # creating sample page for the site
-        echo -n "Adding a sample index.html to /var/www/$name/html... "
-        index_html_data="<html>\n\t<head>\n\t\t<title> Welcome to $name! </title>\n\t</head>\n\t<body>\n\t\t<h1> Success! The $name server block is working! </h1>\n\t</body>\n</html>"
-        echo -e $index_html_data > /var/www/$name/html/index.html
-        echo "Done"
-        ####### optional end #######
-
-        # creating Server Block Files for Each Domain
-        echo -n "Creating /etc/nginx/sites-available/$name and adding the configuration to redirect to port $port... "
-        nginx_sites_available_file_data="# Virtual Host configuration for $name\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $name www.$name;\n\n\troot /var/www/$name/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$port; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
-        # create new server file and correct it's permissions and ownership
-        echo -e $nginx_sites_available_file_data > $name
-        sudo mv $name /etc/nginx/sites-available/
-        sudo chown -R root:root /etc/nginx/sites-available/$name
-        sudo chmod 644 /etc/nginx/sites-available/$name
-        echo "Done"
-        # create a symlink to sites-enabled
-        echo -n "Adding a symlink from /etc/nginx/sites-enabled/$name to /etc/nginx/sites-available/$name... "
-        sudo ln -s /etc/nginx/sites-available/$name /etc/nginx/sites-enabled/
-        echo "Done"
-        # uncomment one line in order to avoid a possible hash bucket memory problem that can arise from adding additional server names
-        sudo sed -i "s|# server_names_hash_bucket_size 64;|server_names_hash_bucket_size 64;|g" /etc/nginx/nginx.conf
-        # restart nginx
-        echo -n "Restarting nginx... "
-        sudo systemctl restart nginx
-        echo "Done"
-    fi
-
-    # Certbot part
-    if $enable_ssl; then
-
-        # Install certbot with nginx extension
-        if [ ! -f /usr/bin/certbot ]; then
-            echo -n "[certbot]: Installing Certbot from Let's Encrypt with the nginx plugin... "
-            sudo apt install python3-certbot-nginx -y > /dev/null
-            echo "Done"
-        elif [ ! -d /usr/lib/python3/dist-packages/certbot_nginx ]; then
-            echo -n "[certbot]: Installing the nginx plugin for certbot... "
-            sudo apt install python3-certbot-nginx -y > /dev/null
-            echo "Done"
-        else
-            echo "[certbot]: Certbot with nginx plugin is already installed"
-        fi
-
-        # Enable SSL
-        echo -n "[certbot]: Installing the certificate for $name... "
-        sudo certbot --nginx -d $name -d www.$name --email $email --agree-tos --no-eff-email --redirect > /dev/null
-        # echo "[certbot]: The certificate for $name was successfully installed"
-        echo "Done"
-    fi
-
-    # TODO: https://stackoverflow.com/questions/878600/how-to-create-a-cron-job-using-bash-automatically-without-the-interactive-editor
-    # Crontab part
-    if $autorenew_ssl; then
-        echo "SSL will be scheduled to autorenew"
-    fi
-
-    echo "The setup for $name is complete. Use \"pm2 start app\" to start your app.js."
+elif $enable_ssl && [ ! "$email" ]; then
+    die 'ERROR: Please provide the EMAIL to conncet to the certificate for registration and recovery contact.'
 fi
+
+# ---------------------------- Installing stuff ---------------------------
+# Install nodejs
+if [ ! -d ~/.n ]; then
+    echo -n "[nodejs]: Installing n version manager with node.js LTS... "
+    curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
+    # fix the ownership problem
+    sudo chown -R $(logname):$(logname) /home/$(logname)/.n
+    echo "Done"
+else
+    echo "[nodejs]: Node is already installed"
+fi
+
+# Install pm2
+if [ ! -f /home/$(logname)/.n/bin/pm2 ]; then
+    echo -n "[pm2]: Installing pm2, a process manager for node.js... "
+    # make sudo use $PATH instead of $SECURE_PATH, otherwise npm won't work
+    sudop "npm install --global pm2 &> /dev/null"
+    echo "Done"
+else
+    echo "[pm2]: PM2 process manager is already installed"
+fi
+
+# Install ufw
+if [ ! -f /usr/sbin/ufw ]; then
+    echo -n "[ufw]: Installing ufw -- the Uncomplicated Firewall... "
+    sudo apt install ufw -y > /dev/null
+    echo "Done"
+else
+    echo "[ufw]: Uncomplicated Firewall is already installed"
+fi
+
+# Install nginx
+if [ ! -f /usr/sbin/nginx ]; then
+    echo -n "[nginx]: Installing nginx... "
+    sudo apt install nginx -y > /dev/null
+    echo "Done"
+else
+    echo "[nginx]: Nginx is already installed"
+fi
+
+# ---------------------------- Actual commands ----------------------------
+# npm install part
+if [ ! -f ./package.json ]; then
+    echo -n "[npm]: Initializing npm and installing Express.js... "
+    sudop "npm init -y > /dev/null"
+    sudop "npm install express &> /dev/null"
+    echo "Done"
+elif [ ! -d ./node_modules/express ]; then
+    echo -n "[npm]: Installing Express.js... "
+    sudop "npm install express &> /dev/null"
+    echo "Done"
+fi
+
+# UFW
+# check if it's german or english language to get the correct ufw status info
+if [[ $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"de"* ]]; then
+    ufwstatus="Inaktiv"
+elif [[ $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"en"* ]]; then
+    ufwstatus="inactive"
+fi
+# make sure firewall is enabled and allows ssh, http and https
+if sudo ufw status | grep -qw $ufwstatus; then
+    echo -n "[ufw]: Enabling ufw and allowing ssh (22), http (80) and https (443)... "
+    sudo ufw enable > /dev/null
+    sudo ufw allow ssh > /dev/null
+    sudo ufw allow http > /dev/null
+    sudo ufw allow https > /dev/null
+    echo "Done"
+else
+    echo -n "[ufw]: Firewall is enabled. Allowing ssh (22), http (80) and https (443)... "
+    sudo ufw allow ssh > /dev/null
+    sudo ufw allow http > /dev/null
+    sudo ufw allow https > /dev/null
+    echo "Done"
+fi
+
+# Nginx part
+if [ ! -d /var/www/$name/html ]; then
+
+    ####### optional start #######
+    # This parts creates the domain folder in /var/www. This isn't necessary,
+    # if the user will not store files there. This is still made to do it the
+    # correct way and allow user to change their mind and use this folder later
+    #######
+
+    # create the directories for the site
+    sudo mkdir -p /var/www/$name/html
+    echo -n "Creating a directory /var/www/$name/html... "
+    # assing the correct ownership
+    # using $(logname) allows to force run this script with sudo and still get the username
+    sudo chown -R $(logname):$(logname) /var/www/$name/html
+    # make permissions of our web roots are correct
+    sudo chmod -R 755 /var/www
+    echo "Done"
+    # creating sample page for the site
+    echo -n "Adding a sample index.html to /var/www/$name/html... "
+    index_html_data="<html>\n\t<head>\n\t\t<title> Welcome to $name! </title>\n\t</head>\n\t<body>\n\t\t<h1> Success! The $name server block is working! </h1>\n\t</body>\n</html>"
+    echo -e $index_html_data > /var/www/$name/html/index.html
+    echo "Done"
+    ####### optional end #######
+
+    # creating Server Block Files for Each Domain
+    echo -n "Creating /etc/nginx/sites-available/$name and adding the configuration to redirect to port $port... "
+    nginx_sites_available_file_data="# Virtual Host configuration for $name\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $name www.$name;\n\n\troot /var/www/$name/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$port; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
+    # create new server file and correct it's permissions and ownership
+    echo -e $nginx_sites_available_file_data > $name
+    sudo mv $name /etc/nginx/sites-available/
+    sudo chown -R root:root /etc/nginx/sites-available/$name
+    sudo chmod 644 /etc/nginx/sites-available/$name
+    echo "Done"
+    # create a symlink to sites-enabled
+    echo -n "Adding a symlink from /etc/nginx/sites-enabled/$name to /etc/nginx/sites-available/$name... "
+    sudo ln -s /etc/nginx/sites-available/$name /etc/nginx/sites-enabled/
+    echo "Done"
+    # uncomment one line in order to avoid a possible hash bucket memory problem that can arise from adding additional server names
+    sudo sed -i "s|# server_names_hash_bucket_size 64;|server_names_hash_bucket_size 64;|g" /etc/nginx/nginx.conf
+    # restart nginx
+    echo -n "Restarting nginx... "
+    sudo systemctl restart nginx
+    echo "Done"
+fi
+
+# Certbot part
+if $enable_ssl; then
+
+    # Install certbot with nginx extension
+    if [ ! -f /usr/bin/certbot ]; then
+        echo -n "[certbot]: Installing Certbot from Let's Encrypt with the nginx plugin... "
+        sudo apt install python3-certbot-nginx -y > /dev/null
+        echo "Done"
+    elif [ ! -d /usr/lib/python3/dist-packages/certbot_nginx ]; then
+        echo -n "[certbot]: Installing the nginx plugin for certbot... "
+        sudo apt install python3-certbot-nginx -y > /dev/null
+        echo "Done"
+    else
+        echo "[certbot]: Certbot with nginx plugin is already installed"
+    fi
+
+    # Enable SSL
+    echo -n "[certbot]: Installing the certificate for $name... "
+    sudo certbot --nginx -d $name -d www.$name --email $email --agree-tos --no-eff-email --redirect > /dev/null
+    # echo "[certbot]: The certificate for $name was successfully installed"
+    echo "Done"
+fi
+
+# TODO: https://stackoverflow.com/questions/878600/how-to-create-a-cron-job-using-bash-automatically-without-the-interactive-editor
+# Crontab part
+if $autorenew_ssl; then
+    echo "SSL will be scheduled to autorenew"
+fi
+
+echo "The setup for $name is complete. Use \"pm2 start app\" to start your app.js."
