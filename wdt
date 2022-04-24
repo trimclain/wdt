@@ -157,7 +157,9 @@ else
     # Install nodejs
     if [ ! -d ~/.n ]; then
         echo "[nodejs]: Installing n version manager with node.js LTS... "
-        sudo -u $(logname) curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
+        curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
+        # fix the ownership problem
+        sudo chown -R $(logname):$(logname) /home/$(logname)/.n
         echo "Done"
     else
         echo "[nodejs]: Node is already installed"
@@ -167,7 +169,7 @@ else
     if [ ! -f /home/$(logname)/.n/bin/pm2 ]; then
         echo -n "[pm2]: Installing pm2, a process manager for node.js... "
         # make sudo use $PATH instead of $SECURE_PATH, otherwise npm won't work
-        sudop "npm install --global pm2" > /dev/null
+        sudop "npm install --global pm2 > /dev/null"
         echo "Done"
     else
         echo "[pm2]: PM2 process manager is already installed"
@@ -185,7 +187,7 @@ else
     # Install nginx
     if [ ! -f /usr/sbin/nginx ]; then
         echo -n "[nginx]: Installing nginx... "
-        sudo apt install nginx -y
+        sudo apt install nginx -y > /dev/null
         echo "Done"
     else
         echo "[nginx]: Nginx is already installed"
@@ -196,12 +198,12 @@ else
     # npm install part
     if [ ! -f ./package.json ]; then
         echo -n "[npm]: Initializing npm and installing Express.js... "
-        sudop "npm init -y" > /dev/null
-        npm install express > /dev/null
+        sudop "npm init -y > /dev/null"
+        sudop "npm install express > /dev/null"
         echo "Done"
     elif [ ! -d ./node_modules/express ]; then
         echo -n "[npm]: Installing Express.js... "
-        sudop "npm install express" > /dev/null
+        sudop "npm install express > /dev/null"
         echo "Done"
     fi
 
