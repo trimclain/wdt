@@ -169,7 +169,7 @@ else
     if [ ! -f /home/$(logname)/.n/bin/pm2 ]; then
         echo -n "[pm2]: Installing pm2, a process manager for node.js... "
         # make sudo use $PATH instead of $SECURE_PATH, otherwise npm won't work
-        sudop "npm install --global pm2 > /dev/null"
+        sudop "npm install --global pm2 &> /dev/null"
         echo "Done"
     else
         echo "[pm2]: PM2 process manager is already installed"
@@ -199,11 +199,11 @@ else
     if [ ! -f ./package.json ]; then
         echo -n "[npm]: Initializing npm and installing Express.js... "
         sudop "npm init -y > /dev/null"
-        sudop "npm install express > /dev/null"
+        sudop "npm install express &> /dev/null"
         echo "Done"
     elif [ ! -d ./node_modules/express ]; then
         echo -n "[npm]: Installing Express.js... "
-        sudop "npm install express > /dev/null"
+        sudop "npm install express &> /dev/null"
         echo "Done"
     fi
 
