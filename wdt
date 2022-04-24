@@ -169,7 +169,7 @@ fi
 if [ ! "$name" ] || [ ! "$port" ]; then
     die 'ERROR: Please provide both the DOMAIN and the PORT. Try "wdt --help" for more information.'
 elif $enable_ssl && [ ! "$email" ]; then
-    die 'ERROR: Please provide the EMAIL to conncet to the certificate for registration and recovery contact.'
+    die 'ERROR: Please provide the EMAIL to connect to the certificate for registration and recovery contact.'
 fi
 
 # ---------------------------- Installing stuff ---------------------------
