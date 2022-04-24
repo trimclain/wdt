@@ -168,6 +168,10 @@ fi
 # if --name and --port were not provided, error out
 if [ ! "$name" ] || [ ! "$port" ]; then
     die 'ERROR: Please provide both the DOMAIN and the PORT. Try "wdt --help" for more information.'
+elif $enable_ssl; then
+    if [ ! "$email" ]; then
+        die 'ERROR: Please provide the EMAIL to conncet to the certificate for registration and recovery contact.'
+    fi
 else
     # ---------------------------- Installing stuff ---------------------------
     # Install nodejs
@@ -294,10 +298,6 @@ else
 
     # Certbot part
     if $enable_ssl; then
-
-        if [ ! "$email" ]; then
-            die 'ERROR: Please provide the EMAIL to conncet to the certificate for registration and recovery contact.'
-        fi
 
         # Install certbot with nginx extension
         if [ ! -f /usr/bin/certbot ]; then
