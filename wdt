@@ -162,9 +162,9 @@ if $delete_domain; then
 
         # delete the cron job if it exists
         tmpfile=$(mktemp)
-        crontab -l > $tmpfile
+        sudo -u $(logname) crontab -l > $tmpfile
         sed -i "/certbot renew --quiet/d" $tmpfile
-        crontab $tmpfile && rm -f $tmpfile
+        sudo -u $(logname) crontab $tmpfile && rm -f $tmpfile
 
         echo "The setup for $name was successfully deleted."
         exit
@@ -325,11 +325,11 @@ if $autorenew_ssl; then
     echo -n "Creating a cron job for certbot to renew the certificate..."
     tmpfile=$(mktemp)
     #write out current crontab
-    crontab -l > $tmpfile
+    sudo -u $(logname) crontab -l > $tmpfile
     #echo new cron into cron file
     echo "0 5 * * * /usr/bin/certbot renew --quiet" >> $tmpfile
     #install new cron file
-    crontab "$tmpfile" && rm -f "$tmpfile"
+    sudo -u $(logname) crontab "$tmpfile" && rm -f "$tmpfile"
     echo "Done"
 fi
 
