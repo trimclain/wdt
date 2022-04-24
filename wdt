@@ -19,6 +19,11 @@ sudop() {
     sudo -u $(logname) bash -c "PATH=$PATH:/home/$(logname)/.n/bin/; $1"
 }
 
+# Run as user
+userdo() {
+    sudo -u $(logname) $1
+}
+
 # Usage info
 # TODO: add --purge to also uninstall every install software
 show_help() {
@@ -161,10 +166,10 @@ if $delete_domain; then
         fi
 
         # delete the cron job if it exists
-        tmpfile=$(mktemp)
-        sudo -u $(logname) crontab -l > $tmpfile
+        tmpfile=$(userdo mktemp)
+        crontab -u $(logname) -l > $tmpfile
         sed -i "/certbot renew --quiet/d" $tmpfile
-        sudo -u $(logname) crontab $tmpfile && rm -f $tmpfile
+        crontab -u $(logname) $tmpfile && rm -f $tmpfile
 
         echo "The setup for $name was successfully deleted."
         exit
@@ -323,13 +328,14 @@ fi
 # Crontab part
 if $autorenew_ssl; then
     echo -n "Creating a cron job for certbot to renew the certificate..."
-    tmpfile=$(mktemp)
-    #write out current crontab
-    sudo -u $(logname) crontab -l > $tmpfile
-    #echo new cron into cron file
+    # create a tempfile
+    tmpfile=$(userdo mktemp)
+    # write out current crontab
+    crontab -u $(logname) -l > $tmpfile
+    # echo new cron into cron file
     echo "0 5 * * * /usr/bin/certbot renew --quiet" >> $tmpfile
-    #install new cron file
-    sudo -u $(logname) crontab "$tmpfile" && rm -f "$tmpfile"
+    # install new cron file
+    crontab -u $(logname) $tmpfile && rm -f $tmpfile
     echo "Done"
 fi
 
