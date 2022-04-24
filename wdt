@@ -327,7 +327,7 @@ fi
 
 # Crontab part
 if $autorenew_ssl; then
-    echo -n "Creating a cron job for certbot to renew the certificate..."
+    echo -n "Creating a cron job for certbot to renew the certificate... "
     # create a tempfile
     tmpfile=$(userdo mktemp)
     # write out current crontab
