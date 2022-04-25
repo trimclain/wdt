@@ -65,42 +65,42 @@ while :; do
                 name=$2
                 shift
             else
-                die "$RED ERROR:$NC \"--name\" requires a non-empty option argument."
+                die "${RED}ERROR:$NC \"--name\" requires a non-empty option argument."
             fi
             ;;
         --name=?*)
             name=${1#*=} # Delete everything up to "=" and assign the remainder.
             ;;
         --name=)         # Handle the case of an empty --name=
-            die "$RED ERROR:$NC \"--name\" requires a non-empty option argument."
+            die "${RED}ERROR:$NC \"--name\" requires a non-empty option argument."
             ;;
         -p|--port)       # Takes an option argument; ensure it has been specified.
             if [ "$2" ]; then
                 port=$2
                 shift
             else
-                die "$RED ERROR:$NC \"--port\" requires a non-empty option argument."
+                die "${RED}ERROR:$NC \"--port\" requires a non-empty option argument."
             fi
             ;;
         --port=?*)
             port=${1#*=} # Delete everything up to "=" and assign the remainder.
             ;;
         --port=)         # Handle the case of an empty --name=
-            die "$RED ERROR:$NC \"--port\" requires a non-empty option argument."
+            die "${RED}ERROR:$NC \"--port\" requires a non-empty option argument."
             ;;
         -e|--email)       # Takes an option argument; ensure it has been specified.
             if [ "$2" ]; then
                 email=$2
                 shift
             else
-                die "$RED ERROR:$NC \"--email\" requires a non-empty option argument."
+                die "${RED}ERROR:$NC \"--email\" requires a non-empty option argument."
             fi
             ;;
         --email=?*)
             email=${1#*=} # Delete everything up to "=" and assign the remainder.
             ;;
         --email=)         # Handle the case of an empty --name=
-            die "$RED ERROR:$NC \"--email\" requires a non-empty option argument."
+            die "${RED}ERROR:$NC \"--email\" requires a non-empty option argument."
             ;;
         -s|--secure)
             enable_ssl=true
@@ -117,7 +117,7 @@ while :; do
             ;;
         -?*)
             # printf 'WARNING\: Unknown option (ignored): %s\n' "$1" >&2
-            echo -e "$RED ERROR:$NC Invalid option -- \"$1\". Try \"wdt --help\" for more information."
+            echo -e "${RED}ERROR:$NC Invalid option -- \"$1\". Try \"wdt --help\" for more information."
             exit 1
             ;;
         *)               # Default case: No more options, so break out of the loop.
@@ -135,7 +135,7 @@ done
 if $delete_domain; then
 
     if [ ! "$name" ]; then
-        die "$RED ERROR:$NC Please provide the DOMAIN to delete."
+        die "${RED}ERROR:$NC Please provide the DOMAIN to delete."
     fi
 
     read -p "Are you sure you want to delete $name? [y|n] " -n 1 -r
@@ -147,7 +147,7 @@ if $delete_domain; then
             sudo rm /etc/nginx/sites-available/$name
             echo "Done"
         else
-            die "$RED ERROR:$NC $name entry not found."
+            die "${RED}ERROR:$NC $name entry not found."
         fi
         # -L check if there is a symlink, no matter broken or not
         if [ -L /etc/nginx/sites-enabled/$name ]; then
@@ -184,9 +184,9 @@ fi
 
 # if the necessary arguments are missing, error out
 if [ ! "$name" ] || [ ! "$port" ]; then
-    die "$RED ERROR:$NC Please provide both the DOMAIN and the PORT. Try \"wdt --help\" for more information."
+    die "${RED}ERROR:$NC Please provide both the DOMAIN and the PORT. Try \"wdt --help\" for more information."
 elif $enable_ssl && [ ! "$email" ]; then
-    die "$RED ERROR:$NC Please provide the EMAIL to connect to the certificate for registration and recovery contact."
+    die "${RED}ERROR:$NC Please provide the EMAIL to connect to the certificate for registration and recovery contact."
 fi
 
 # ---------------------------- Installing stuff ---------------------------
