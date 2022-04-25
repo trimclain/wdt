@@ -29,7 +29,6 @@ userdo() {
 }
 
 # Usage info
-# TODO: add --purge to also uninstall every install software
 show_help() {
 cat << EOF
 Usage: ${0##*/} [OPTIONS...] [-n DOMNAME] [-p PORTNUM] [-e EMAIL]
@@ -42,6 +41,7 @@ Setup everything to deploy a website.
      -e, --email EMAIL      pass the email for the ssl certificate for registration and recovery contact
      -a, --autorenew        schedule automatic renewal of the certificate using crontab
      -d, --delete           undo everything wdt has done for a specified domain
+     --purge-all            undo everything wdt has done and uninstall every software it has installed
 EOF
 }
 
@@ -53,6 +53,7 @@ email=
 enable_ssl=false
 autorenew_ssl=false
 delete_domain=false
+purge_it_all=false
 
 while :; do
     case $1 in
@@ -111,6 +112,9 @@ while :; do
         -d|--delete)
             delete_domain=true
             ;;
+        --purge-all)
+            purge_it_all=true
+            ;;
         --)              # End of all options.
             shift
             break
@@ -131,6 +135,63 @@ done
 # If there are input files (for example) that follow the options, they
 # will remain in the "$@" positional parameters.
 # TODO: if there's still $1, assing it to $name
+
+# TODO:
+if $purge_it_all; then
+    read -p "Are you sure you want to purge everything wdt has done? [yes|no] " -r
+    if [[ $REPLY =~ ^[Yy][Ee]?[Ss]?$ ]]; then
+        # nodejs
+        if [ -d /home/$(logname)/.n ]; then
+            echo -en "$CC[nodejs]:$NC Deleting n version manager with node.js LTS... "
+            rm -rf /home/$(logname)/.n
+            echo "Done"
+        fi
+        # ufw
+        if [ -f /usr/sbin/ufw ]; then
+            echo -en "$CC[ufw]:$NC Disabling and deleting ufw -- the Uncomplicated Firewall... "
+            sudo ufw disable &> /dev/null
+            sudo apt purge ufw -y &> /dev/null
+            echo "Done"
+        fi
+        # nginx
+        if [ ! -f /usr/sbin/nginx ]; then
+            echo -en "$CC[nginx]:$NC Deleting nginx... "
+            sudo apt purge nginx nginx-common -y &> /dev/null
+            # delete everything in /var/www/ except html folder
+            sudo find /var/www -mindepth 1 ! -regex '^/var/www/html\(/.*\)?' -delete
+            echo "Done"
+        fi
+        # certbot
+        if [ -f /usr/bin/certbot ]; then
+            # check if ssl certificate exists
+            # TODO: delete all certificates (get the list of them)
+            # if [[ $(sudo certbot certificates 2> /dev/null) == *"$name"* ]]; then
+            #     echo -en "$CC[certbot]:$NC Deleting the SSL certificate for $name... "
+            #     sudo certbot delete --cert-name $name &> /dev/null
+            #     echo "Done"
+            # fi
+            echo -en "$CC[certbot]:$NC Deleting certbot... "
+            sudo apt purge python3-certbot-nginx -y &> /dev/null
+            echo "Done"
+        fi
+        # crontab
+        # delete the cron job if it exists
+        tmpfile=$(userdo mktemp)
+        crontab -u $(logname) -l > $tmpfile
+        if grep -qF "certbot renew --quiet" $tmpfile; then
+            echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
+            sed -i "/certbot renew --quiet/d" $tmpfile
+            crontab -u $(logname) $tmpfile && rm -f $tmpfile
+            echo "Done";
+        else
+            rm -f $tmpfile
+        fi
+
+        sudo apt autoremove -y
+    else
+        exit 0
+    fi
+fi
 
 if $delete_domain; then
 
