@@ -198,7 +198,7 @@ fi
 
 # NODEJS
 # Install nodejs
-if [ ! -d ~/.n ]; then
+if [ ! -d /home/$(logname)/.n ]; then
     echo -en "$CC[nodejs]:$NC Installing n version manager with node.js LTS... "
     curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
     # fix the ownership problem
