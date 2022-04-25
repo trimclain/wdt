@@ -175,7 +175,7 @@ if $delete_domain; then
         sed -i "/certbot renew --quiet/d" $tmpfile
         crontab -u $(logname) $tmpfile && rm -f $tmpfile
 
-        echo -e "$CYAN The setup for $name was successfully deleted.$NC"
+        echo -e "${CYAN}The setup for $name was successfully deleted.$NC"
         exit
     else
         exit 0
@@ -343,4 +343,4 @@ if $autorenew_ssl; then
     echo "Done"
 fi
 
-echo -e "$CYAN The setup for $name is complete. Use \"pm2 start app.js\" to start your app.$NC"
+echo -e "${CYAN}The setup for $name is complete. Use \"pm2 start app.js\" to start your app.$NC"
