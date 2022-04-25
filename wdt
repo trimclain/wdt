@@ -134,9 +134,8 @@ done
 # Rest of the program here.
 # If there are input files (for example) that follow the options, they
 # will remain in the "$@" positional parameters.
-# TODO: if there's still $1, assing it to $name
+# TODO: if there's still $1, asing it to $name
 
-# TODO:
 if $purge_it_all; then
     read -p "Are you sure you want to purge everything wdt has done? [yes|no] " -r
     if [[ $REPLY =~ ^[Yy][Ee]?[Ss]?$ ]]; then
@@ -187,7 +186,12 @@ if $purge_it_all; then
             rm -f $tmpfile
         fi
 
+        echo -en "$CC[apt]:$NC Cleaning it up... "
         sudo apt autoremove -y &> /dev/null
+        echo "Done";
+
+        echo -e "${CYAN}The purge was successfull.$NC"
+        exit
     else
         exit 0
     fi
