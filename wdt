@@ -141,6 +141,8 @@ if $purge_it_all; then
     if [[ $REPLY =~ ^[Yy][Ee]?[Ss]?$ ]]; then
         # nodejs
         if [ -d /home/$(logname)/.n ]; then
+            # delete all pm2 jobs
+            pm2 delete all &> /dev/null
             echo -en "$CC[nodejs]:$NC Deleting n version manager with node.js LTS... "
             rm -rf /home/$(logname)/.n
             echo "Done"
@@ -153,7 +155,7 @@ if $purge_it_all; then
             echo "Done"
         fi
         # nginx
-        if [ ! -f /usr/sbin/nginx ]; then
+        if [ -f /usr/sbin/nginx ]; then
             echo -en "$CC[nginx]:$NC Deleting nginx... "
             sudo apt purge nginx nginx-common -y &> /dev/null
             # delete everything in /var/www/ except html folder
