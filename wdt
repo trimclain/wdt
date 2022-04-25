@@ -142,7 +142,7 @@ if $purge_it_all; then
         # nodejs
         if [ -d /home/$(logname)/.n ]; then
             # delete all pm2 jobs
-            pm2 delete all &> /dev/null
+            sudop "pm2 delete all" &> /dev/null
             echo -en "$CC[nodejs]:$NC Deleting n version manager with node.js LTS... "
             rm -rf /home/$(logname)/.n
             echo "Done"
