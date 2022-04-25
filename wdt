@@ -187,7 +187,7 @@ if $purge_it_all; then
             rm -f $tmpfile
         fi
 
-        sudo apt autoremove -y
+        sudo apt autoremove -y &> /dev/null
     else
         exit 0
     fi
@@ -295,7 +295,7 @@ fi
 # Install ufw
 if [ ! -f /usr/sbin/ufw ]; then
     echo -en "$CC[ufw]:$NC Installing ufw -- the Uncomplicated Firewall... "
-    sudo apt install ufw -y > /dev/null
+    sudo apt install ufw -y &> /dev/null
     echo "Done"
 else
     echo -e "$CC[ufw]:$NC Uncomplicated Firewall is already installed"
@@ -310,7 +310,7 @@ fi
 # make sure firewall is enabled and allows ssh, http and https
 if sudo ufw status | grep -qw $ufwstatus; then
     echo -en "$CC[ufw]:$NC Enabling ufw and allowing ssh (22), http (80) and https (443)... "
-    sudo ufw enable > /dev/null
+    sudo ufw --force enable > /dev/null
     sudo ufw allow ssh > /dev/null
     sudo ufw allow http > /dev/null
     sudo ufw allow https > /dev/null
@@ -327,7 +327,7 @@ fi
 # Install nginx
 if [ ! -f /usr/sbin/nginx ]; then
     echo -en "$CC[nginx]:$NC Installing nginx... "
-    sudo apt install nginx -y > /dev/null
+    sudo apt install nginx -y &> /dev/null
     echo "Done"
 else
     echo -e "$CC[nginx]:$NC Nginx is already installed"
@@ -381,11 +381,11 @@ if $enable_ssl; then
     # Install certbot with nginx extension
     if [ ! -f /usr/bin/certbot ]; then
         echo -en "$CC[certbot]:$NC Installing Certbot from Let's Encrypt with the nginx plugin... "
-        sudo apt install python3-certbot-nginx -y > /dev/null
+        sudo apt install python3-certbot-nginx -y &> /dev/null
         echo "Done"
     elif [ ! -d /usr/lib/python3/dist-packages/certbot_nginx ]; then
         echo -en "$CC[certbot]:$NC Installing the nginx plugin for certbot... "
-        sudo apt install python3-certbot-nginx -y > /dev/null
+        sudo apt install python3-certbot-nginx -y &> /dev/null
         echo "Done"
     else
         echo -e "$CC[certbot]:$NC Certbot with nginx plugin is already installed"
