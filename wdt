@@ -172,8 +172,14 @@ if $delete_domain; then
         # delete the cron job if it exists
         tmpfile=$(userdo mktemp)
         crontab -u $(logname) -l > $tmpfile
-        sed -i "/certbot renew --quiet/d" $tmpfile
-        crontab -u $(logname) $tmpfile && rm -f $tmpfile
+        if grep -qF "certbot renew --quiet" $tmpfile; then
+            echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
+            sed -i "/certbot renew --quiet/d" $tmpfile
+            crontab -u $(logname) $tmpfile && rm -f $tmpfile
+            echo "Done";
+        else
+            rm -f $tmpfile
+        fi
 
         echo -e "${CYAN}The setup for $name was successfully deleted.$NC"
         exit
@@ -189,7 +195,8 @@ elif $enable_ssl && [ ! "$email" ]; then
     die "${RED}ERROR:$NC Please provide the EMAIL to connect to the certificate for registration and recovery contact."
 fi
 
-# ---------------------------- Installing stuff ---------------------------
+
+# NODEJS
 # Install nodejs
 if [ ! -d ~/.n ]; then
     echo -en "$CC[nodejs]:$NC Installing n version manager with node.js LTS... "
@@ -211,25 +218,6 @@ else
     echo -e "$CC[pm2]:$NC PM2 process manager is already installed"
 fi
 
-# Install ufw
-if [ ! -f /usr/sbin/ufw ]; then
-    echo -en "$CC[ufw]:$NC Installing ufw -- the Uncomplicated Firewall... "
-    sudo apt install ufw -y > /dev/null
-    echo "Done"
-else
-    echo -e "$CC[ufw]:$NC Uncomplicated Firewall is already installed"
-fi
-
-# Install nginx
-if [ ! -f /usr/sbin/nginx ]; then
-    echo -en "$CC[nginx]:$NC Installing nginx... "
-    sudo apt install nginx -y > /dev/null
-    echo "Done"
-else
-    echo -e "$CC[nginx]:$NC Nginx is already installed"
-fi
-
-# ---------------------------- Actual commands ----------------------------
 # npm install part
 if [ ! -f ./package.json ]; then
     echo -en "$CC[npm]:$NC Initializing npm and installing Express.js... "
@@ -243,6 +231,15 @@ elif [ ! -d ./node_modules/express ]; then
 fi
 
 # UFW
+# Install ufw
+if [ ! -f /usr/sbin/ufw ]; then
+    echo -en "$CC[ufw]:$NC Installing ufw -- the Uncomplicated Firewall... "
+    sudo apt install ufw -y > /dev/null
+    echo "Done"
+else
+    echo -e "$CC[ufw]:$NC Uncomplicated Firewall is already installed"
+fi
+
 # check if it's german or english language to get the correct ufw status info
 if [[ $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"de"* ]]; then
     ufwstatus="Inaktiv"
@@ -265,13 +262,23 @@ else
     echo "Done"
 fi
 
-# Nginx part
+# NGINX
+# Install nginx
+if [ ! -f /usr/sbin/nginx ]; then
+    echo -en "$CC[nginx]:$NC Installing nginx... "
+    sudo apt install nginx -y > /dev/null
+    echo "Done"
+else
+    echo -e "$CC[nginx]:$NC Nginx is already installed"
+fi
+
+# Do the work
 if [ ! -d /var/www/$name/html ]; then
 
     ####### optional start #######
     # This parts creates the domain folder in /var/www. This isn't necessary,
     # if the user will not store files there. This is still made to do it the
-    # correct way and allow user to change their mind and use this folder later
+    # correct way and allow the user to change their mind and use this folder later
     #######
 
     # create the directories for the site
@@ -307,7 +314,7 @@ if [ ! -d /var/www/$name/html ]; then
     echo "Done"
 fi
 
-# Certbot part
+# CERTBOT
 if $enable_ssl; then
 
     # Install certbot with nginx extension
@@ -329,7 +336,7 @@ if $enable_ssl; then
     echo "Done"
 fi
 
-# Crontab part
+# CRONTAB
 if $autorenew_ssl; then
     echo -en "$CC[crontab]:$NC Creating a cron job for certbot to renew the certificate... "
     # create a tempfile
@@ -343,4 +350,5 @@ if $autorenew_ssl; then
     echo "Done"
 fi
 
+# FINISH
 echo -e "${CYAN}The setup for $name is complete. Use \"pm2 start app.js\" to start your app.$NC"
