@@ -10,28 +10,24 @@ It uses
 - [certbot](https://github.com/certbot/certbot) -- client for the Let's Encrypt CA with a [plugin](https://packages.debian.org/buster/python3-certbot-nginx) for nginx
 - [crontab](https://man7.org/linux/man-pages/man5/crontab.5.html) -- [cron job](https://en.wikipedia.org/wiki/Cron) creator and scheduler
 
-### TODO:
-- [ ] Add --clean option or similar to undo all installations of this script
-- [ ] Add -d, --delete option or similar to delete a give domain, which was isntalled with this script
-- [ ] Finish the crontab part
-
-# What does WDT automate and what is left to do
+## Explanation
 
 Here is the instruction of what WDT does and what you should do if you'd do it yourself.
 
-## What to do on namecheap.com
+### What to do on namecheap.com (similar on other domain name registrars)
 This part should be done by a user. WDT can't do it for you.
 1. Go to manage domains, your domain
 2. Go to Advanced DNS tab
 3. Add a new "A Record", host "@" (stands for root), value: "ip of the server from `curl ifconfig.me`", ttl "automatic"
-4. Do the same with host "www"
+4. Do the same for host "www"
 
-## How to setup
+---
+### INFO: How to do manually what WDT does for you
 1. Initialize a node project and install Express and pm2
 2. Setup the firewall
 3. Install nginx
-6. Do the nginx stuff (wip)
-7. Check if config is correct
+6. Do the nginx stuff (there is a lot to describe here, better check the code)
+7. Check if the nginx config is correct
 ```
 sudo nginx -t
 ```
