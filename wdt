@@ -177,15 +177,18 @@ if $purge_it_all; then
         fi
         # crontab
         # delete the cron job if it exists
-        tmpfile=$(userdo mktemp)
-        crontab -u $(logname) -l > $tmpfile
-        if grep -qF "certbot renew --quiet" $tmpfile; then
-            echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
-            sed -i "/certbot renew --quiet/d" $tmpfile
-            crontab -u $(logname) $tmpfile && rm -f $tmpfile
-            echo "Done";
-        else
-            rm -f $tmpfile
+        # if there is no crontab, this will not error out
+        if [[ -f /var/spool/cron/crontabs/$(logname) ]]; then
+            tmpfile="tmp.txt"
+            crontab -u $(logname) -l > $tmpfile
+            if grep -qF "certbot renew --quiet" $tmpfile; then
+                echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
+                sed -i "/certbot renew --quiet/d" $tmpfile
+                crontab -u $(logname) $tmpfile && rm $tmpfile
+                echo "Done";
+            else
+                rm $tmpfile
+            fi
         fi
 
         echo -en "$CC[apt]:$NC Cleaning it up... "
@@ -237,15 +240,18 @@ if $delete_domain; then
         fi
 
         # delete the cron job if it exists
-        tmpfile=$(userdo mktemp)
-        crontab -u $(logname) -l > $tmpfile
-        if grep -qF "certbot renew --quiet" $tmpfile; then
-            echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
-            sed -i "/certbot renew --quiet/d" $tmpfile
-            crontab -u $(logname) $tmpfile && rm -f $tmpfile
-            echo "Done";
-        else
-            rm -f $tmpfile
+        # if there is no crontab, this will not error out
+        if [[ -f /var/spool/cron/crontabs/$(logname) ]]; then
+            tmpfile="tmp.txt"
+            crontab -u $(logname) -l > $tmpfile
+            if grep -qF "certbot renew --quiet" $tmpfile; then
+                echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
+                sed -i "/certbot renew --quiet/d" $tmpfile
+                crontab -u $(logname) $tmpfile && rm $tmpfile
+                echo "Done";
+            else
+                rm $tmpfile
+            fi
         fi
 
         echo -e "${CYAN}The setup for $name was successfully deleted.$NC"
@@ -406,19 +412,19 @@ fi
 # CRONTAB
 if $autorenew_ssl; then
     # create a tempfile
-    tmpfile=$(userdo mktemp)
+    tmpfile="tmp.txt"
     # write out current crontab
     crontab -u $(logname) -l > $tmpfile
     # check if the cron job already exists
     if grep -qF "certbot renew --quiet" $tmpfile; then
-        rm -f $tmpfile
+        rm $tmpfile
         echo -e "$CC[crontab]:$NC The cron job for certbot to renew the certificate already exists"
     else
         echo -en "$CC[crontab]:$NC Creating a cron job for certbot to renew the certificate... "
         # echo new cron into cron file
         echo "0 5 * * * /usr/bin/certbot renew --quiet" >> $tmpfile
         # install new cron file
-        crontab -u $(logname) $tmpfile && rm -f $tmpfile
+        crontab -u $(logname) $tmpfile && rm $tmpfile
         echo "Done";
     fi
 fi
