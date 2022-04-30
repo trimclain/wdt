@@ -303,6 +303,18 @@ elif [ ! -d ./node_modules/express ]; then
     echo "Done"
 fi
 
+# Create app.js if it doesn't exist
+if [ ! -f ./app.js ]; then
+    echo -en "$CC[express]:$NC Creating app.js to serve the folder \"public\" to localhost:$port... "
+    folder="public"
+    app_js_content="// app.js for hosting the folder \"$folder\" on port $port\nconst express = require('express')\nconst path = require('path')\n\nconst app = express()\n"
+    userdo "touch app.js"
+    echo -e $app_js_content > app.js
+    echo "Done"
+else
+    echo -en "$CC[express]:$NC Found app.js"
+fi
+
 # UFW
 # Install ufw
 if [ ! -f /usr/sbin/ufw ]; then
@@ -430,4 +442,5 @@ if $autorenew_ssl; then
 fi
 
 # FINISH
-echo -e "${CYAN}The setup for $name is complete. Use \"pm2 start app.js\" to start your app.$NC"
+echo -e "${CYAN}The setup for $name is complete.$NC"
+echo -e "${CYAN}Put all your static files in folder \"public\" and use \"pm2 start app.js\" to host your website on localhost:$port.$NC"
