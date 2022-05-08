@@ -278,7 +278,7 @@ if [ ! -d /home/$(logname)/.n ]; then
     sudo chown -R $(logname):$(logname) /home/$(logname)/.n
     echo "Done"
 else
-    echo -e "$CC[nodejs]$NC: Node is already installed"
+    echo -e "$CC[nodejs]:$NC Node is already installed"
 fi
 
 # Install pm2
