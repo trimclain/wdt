@@ -134,7 +134,7 @@ done
 # Rest of the program here.
 # If there are input files (for example) that follow the options, they
 # will remain in the "$@" positional parameters.
-# TODO: if there's still $1, asing it to $name
+# TODO: if there's still $1, asign it to $name
 
 if $purge_it_all; then
     read -p "Are you sure you want to purge everything wdt has done? [yes|no] " -r
@@ -307,7 +307,7 @@ fi
 if [ ! -f ./app.js ]; then
     echo -en "$CC[express]:$NC Creating app.js to serve the folder \"public\" to localhost:$port... "
     folder="public"
-    app_js_content="// app.js for hosting the folder \"$folder\" on port $port\nconst express = require('express')\nconst path = require('path')\n\nconst app = express()\nconst port = $port\nconst folder = \"$folder\"\n\n// express provides a built in way to serve all static files from the folder\napp.use(express.static(folder));\n\napp.listen(port, () => {\n\tconsole.log(\`Express is listening on port \${port}\`)\n})"
+    app_js_content="// app.js for hosting the folder \"$folder\" on port $port -- created by wdt\nconst express = require('express')\nconst path = require('path')\n\nconst app = express()\nconst port = $port\nconst folder = \"$folder\"\n\n// express provides a built in way to serve all static files from the folder\napp.use(express.static(folder));\n\napp.listen(port, () => {\n\tconsole.log(\`Express is listening on port \${port}\`)\n})"
     userdo "touch app.js"
     echo -e $app_js_content > app.js
     echo "Done"
@@ -376,13 +376,13 @@ if [ ! -d /var/www/$name/html ]; then
     sudo chmod -R 755 /var/www
     # creating sample page for the site
     echo -e "$CC[nginx]:$NC Adding a sample index.html to /var/www/$name/html... "
-    index_html_data="<html>\n\t<head>\n\t\t<title> Welcome to $name! </title>\n\t</head>\n\t<body>\n\t\t<h1> Success! The $name server block is working! </h1>\n\t</body>\n</html>"
+    index_html_data="<!-- Created by wdt -->\n<html>\n\t<head>\n\t\t<title>Welcome to $name!</title>\n\t</head>\n\t<body>\n\t\t<h1> Success! The $name server block is working! </h1>\n\t</body>\n</html>"
     echo -e $index_html_data > /var/www/$name/html/index.html
     ####### optional end #######
 
     # creating Server Block Files for Each Domain
     echo -e "$CC[nginx]:$NC Creating /etc/nginx/sites-available/$name and adding the configuration to redirect to port $port... "
-    nginx_sites_available_file_data="# Virtual Host configuration for $name\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $name www.$name;\n\n\troot /var/www/$name/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$port; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
+    nginx_sites_available_file_data="# Virtual Host configuration for $name -- created by wdt\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $name www.$name;\n\n\troot /var/www/$name/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$port; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
     # create new server file and correct it's permissions and ownership
     echo -e $nginx_sites_available_file_data > $name
     sudo mv $name /etc/nginx/sites-available/
