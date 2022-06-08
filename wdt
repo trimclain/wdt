@@ -239,6 +239,7 @@ if $delete_domain; then
             echo "Done"
         fi
 
+        # TODO: fix the case when there are other domains who need this job
         # delete the cron job if it exists
         # if there is no crontab, this will not error out
         if [[ -f /var/spool/cron/crontabs/$(logname) ]]; then

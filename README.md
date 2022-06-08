@@ -10,56 +10,28 @@ It uses
 - [certbot](https://github.com/certbot/certbot) -- client for the Let's Encrypt CA with a [plugin](https://packages.debian.org/buster/python3-certbot-nginx) for nginx
 - [crontab](https://man7.org/linux/man-pages/man5/crontab.5.html) -- [cron job](https://en.wikipedia.org/wiki/Cron) creator and scheduler
 
-## Explanation
+## Getting Started
 
-Here is the instruction of what WDT does and what you should do if you'd do it yourself.
+### Installing
+1. Clone this repository
+```
+git clone https://github.com/trimclain/wdt
+```
+2. Run the installation
+```
+make install
+```
 
-### What to do on namecheap.com (similar on other domain name registrars)
-This part should be done by a user. WDT can't do it for you.
-1. Go to manage domains, your domain
-2. Go to Advanced DNS tab
-3. Add a new "A Record", host "@" (stands for root), value: "ip of the server from `curl ifconfig.me`", ttl "automatic"
+### Setting up your domain
+This part is required to setup the connection between your domain and your linux server.
+0. Go to your domain name registrar's website (e.g. namecheap.com) and sign in.
+1. Go to Dashboard and choose your domain to manage
+2. Go to the Advanced DNS tab
+3. Add a new "A Record", as host add "@" (stands for root), as value add the ip of the server you will be hosting on, TTL leave as "automatic" <br>
+   NOTE: You can get the ip of your server with `curl ifconfig.me`
 4. Do the same for host "www"
 
----
-### INFO: How to do manually what WDT does for you
-1. Initialize a node project and install Express and pm2
-2. Setup the firewall
-3. Install nginx
-6. Do the nginx stuff (there is a lot to describe here, better check the code)
-7. Check if the nginx config is correct
-```
-sudo nginx -t
-```
-8. Restart nginx
-```
-sudo service nginx restart
-```
-9. To add an SSL certificate from Lets-Encrypt install certbot and it's nginx plugin
-```
-sudo apt install certbot python3-certbot-nginx -y
-```
-10. Obtain the certificate
-```
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
-```
-11. For auto-renewal create a crontab entry:
-      - Open crontab config with
-        ```
-        crontab -e
-        ```
-      - Add a cron job that runs the certbot command, which renews the
-        certificate if it detects the certificate will expire within 30 days.
-        Schedule it to run daily at a specified time (in this example, it does so at 05:00 a.m.):
-        ```
-        0 5 * * * /usr/bin/certbot renew --quiet
-        ```
-    Cron line explanation: </br>
-    \* \* \* \* \* "command to be executed" </br>
-    \- \- \- \- \- </br>
-    | | | | | </br>
-    | | | | ----- Day of week (0 - 7) (Sunday=0 or 7) </br>
-    | | | ------- Month (1 - 12) </br>
-    | | --------- Day of month (1 - 31) </br>
-    | ----------- Hour (0 - 23) </br>
-    ------------- Minute (0 - 59)
+## Demo
+Here's a demo showing full deployment of one of my projects. This was done after the configuration [above](https://github.com/trimclain/wdt#setting-up-your-domain).
+
+https://user-images.githubusercontent.com/84108846/172663249-efa38236-df35-48da-a9f9-a67652b3a0f5.mp4
