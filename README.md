@@ -27,7 +27,11 @@ This part is required to setup the connection between your domain and your linux
 0. Go to your domain name registrar's website (e.g. namecheap.com) and sign in.
 1. Go to Dashboard and choose your domain to manage
 2. Go to the Advanced DNS tab
+<<<<<<< HEAD
 3. Add a new "A Record", as host add "@" (stands for root), as value add the ip of the server you will be hosting on, TTL leave as "automatic" <br>
+=======
+3. Add a new "A Record", as host add "@" (stands for root), as value add the ip of the server you will be hosting on, ttl leave as "automatic" <br>
+>>>>>>> 95e512a... Update README.md
    NOTE: You can get the ip of your server with `curl ifconfig.me`
 4. Do the same for host "www"
 
