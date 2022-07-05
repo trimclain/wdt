@@ -275,9 +275,9 @@ if [ ! -d /home/$(logname)/.n ]; then
     echo -en "$CC[nodejs]:$NC Installing n version manager with node.js LTS... "
     # check if N_PREFIX has to be added to .bashrc or .zshrc
     if [ -z "$N_PREFIX" ]; then
-        curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
-    else
         curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q
+    else
+        curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
     fi
     # fix the ownership problem
     sudo chown -R $(logname):$(logname) /home/$(logname)/.n
