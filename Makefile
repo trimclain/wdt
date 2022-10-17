@@ -22,12 +22,20 @@ uninstall: ## Uninstalls wdt
 container: ## Build a docker container for testing
 	@if [[ ! -f /usr/bin/docker ]]; then echo "Docker not found, install it first"; \
 		elif [[ $$(docker images | grep wdttest) ]]; then \
-		echo "Container 'wdttest' already exists"; else echo "Building the 'wdttest' container" \
+		echo 'Container "wdttest" already exists'; else echo 'Building the "wdttest" container' \
 		&& docker build -t wdttest . && echo "Built successfully"; fi
+
+delcontainer:
+	@if [[ $$(docker images | grep wdttest) ]]; then echo 'Deleting "wdttest" container' && \
+		docker image rm wdttest:latest -f; \
+		else echo 'Container "wdttest" not found. Build it with \`make container\`.'; fi
+
+rebuild: delcontainer container ## Rebuild existing docker container
+	@echo "Rebuilt successfully"
 
 test: ## Run the wdttest container
 	@if [[ $$(docker images | grep wdttest) ]]; then docker run -it wdttest; \
-		else echo "Container 'wdttest' not found. Build it with \`make container\`."; fi
+		else echo 'Container "wdttest" not found. Build it with \`make container\`.'; fi
 
 
-.PHONY: all help install uninstall container test
+.PHONY: all help install uninstall container delcontainer rebuild test
