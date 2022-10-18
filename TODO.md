@@ -1,0 +1,4 @@
+- [ ] auto put files in public (work from one level above the repo or maybe even clone yourself?)
+- [ ] auto create ./sync file
+- [ ] create reponame-app.js instead of app.js
+- [ ] implement wdt ls to list all installed ones?
