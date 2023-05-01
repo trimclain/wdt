@@ -20,7 +20,7 @@ uninstall: ## Uninstalls wdt
 		echo "WDT uninstalled successfully."; else echo "WDT not found."; fi
 
 container: ## Build a docker container for testing
-	@if [[ ! -f /usr/bin/docker ]]; then echo "Docker not found, install it first"; \
+	@if ! command -v docker > /dev/null; then echo "Docker not found, install it first"; \
 		elif [[ $$(docker images | grep wdttest) ]]; then \
 		echo 'Container "wdttest" already exists'; else echo 'Building the "wdttest" container' \
 		&& docker build -t wdttest . && echo "Built successfully"; fi
@@ -31,7 +31,6 @@ delcontainer:
 		else echo 'Container "wdttest" not found. Build it with \`make container\`.'; fi
 
 rebuild: delcontainer container ## Rebuild existing docker container
-	@echo "Rebuilt successfully"
 
 test: ## Run the wdttest container
 	@if [[ $$(docker images | grep wdttest) ]]; then docker run -it wdttest; \

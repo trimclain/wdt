@@ -1,7 +1,10 @@
 FROM ubuntu:latest
-WORKDIR /home/trimclain
-RUN apt update && apt install software-properties-common -y && apt install -y sudo git make
+RUN apt update && apt install -y sudo git make vim
 RUN useradd -m trimclain && echo "trimclain:pass" | chpasswd && adduser trimclain sudo && chown -R trimclain:trimclain /home/trimclain
 USER trimclain
-CMD /bin/bash
-RUN git clone https://github.com/trimclain/wdt /home/trimclain/wdt && cd wdt
+COPY --chown=trimclain:trimclain ./test/.bash_aliases /home/trimclain/.bash_aliases
+COPY --chown=trimclain:trimclain . /home/trimclain/wdt
+RUN mkdir -p /home/trimclain/.local/bin/
+# RUN git clone https://github.com/trimclain/wdt /home/trimclain/wdt && cd wdt
+WORKDIR /home/trimclain/wdt
+CMD ["/bin/bash"]
