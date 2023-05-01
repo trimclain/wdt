@@ -30,7 +30,7 @@ userdo() {
 
 # Usage info
 show_help() {
-cat << EOF
+    cat << EOF
 Usage: ${0##*/} [OPTIONS...] [-n DOMNAME] [-p PORTNUM] [-e EMAIL]
 Setup everything to deploy a website.
 
@@ -41,7 +41,7 @@ Setup everything to deploy a website.
      -e, --email EMAIL      pass the email for the ssl certificate for registration and recovery contact
      -a, --autorenew        schedule automatic renewal of the certificate using crontab
      -d, --delete           undo everything wdt has done for a specified domain
-     --purge-all            undo everything wdt has done and uninstall every software it has installed
+     --purge-all            undo everything wdt has done and uninstall every software wdt has installed
 EOF
 }
 
