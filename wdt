@@ -147,12 +147,12 @@ if $purge_it_all; then
             echo "Done"
         fi
         # ufw
-        if [ -f /usr/sbin/ufw ]; then
-            echo -en "$CC[ufw]:$NC Disabling and deleting ufw -- the Uncomplicated Firewall... "
-            sudo ufw disable &> /dev/null
-            sudo apt purge ufw -y &> /dev/null
-            echo "Done"
-        fi
+        # if [ -f /usr/sbin/ufw ]; then
+        #     echo -en "$CC[ufw]:$NC Disabling and deleting ufw -- the Uncomplicated Firewall... "
+        #     sudo ufw disable &> /dev/null
+        #     sudo apt purge ufw -y &> /dev/null
+        #     echo "Done"
+        # fi
         # nginx
         if [ -f /usr/sbin/nginx ]; then
             echo -en "$CC[nginx]:$NC Deleting nginx... "
