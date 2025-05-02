@@ -1,10 +1,10 @@
 FROM ubuntu:latest
-RUN apt update && apt install -y sudo git make vim
-RUN useradd -m trimclain && echo "trimclain:pass" | chpasswd && adduser trimclain sudo && chown -R trimclain:trimclain /home/trimclain
-USER trimclain
-COPY --chown=trimclain:trimclain ./test/.bash_aliases /home/trimclain/.bash_aliases
-COPY --chown=trimclain:trimclain . /home/trimclain/wdt
-RUN mkdir -p /home/trimclain/.local/bin/
-# RUN git clone https://github.com/trimclain/wdt /home/trimclain/wdt && cd wdt
-WORKDIR /home/trimclain/wdt
+RUN apt-get update && apt-get install -y sudo git make vim
+RUN useradd -m tester && echo "tester:pass" | chpasswd && usermod -aG sudo tester && chown -R tester:tester /home/tester
+USER tester
+RUN echo 'export PATH=$HOME/.local/bin:$PATH' > /home/tester/.bash_aliases
+RUN mkdir -p /home/tester/.local/bin/
+# TODO: change to wdt after rewrite
+COPY --chown=tester:tester ./wdt.sh /home/tester/.local/bin/wdt
+WORKDIR /home/tester
 CMD ["/bin/bash"]
