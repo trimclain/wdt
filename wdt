@@ -83,6 +83,11 @@ OPTIONS:
 EOF
 }
 
+# TODO: add to main
+display_wdt_version() {
+    echo "wdt $VERSION"
+}
+
 #######################################
 # Install NodeJS LTS
 #######################################
@@ -436,9 +441,9 @@ main() {
     port=
     email=
     enable_ssl=false
-    autorenew_ssl=false
-    delete_domain=false
-    purge_it_all=false
+    # autorenew_ssl=false
+    # delete_domain=false
+    # purge_it_all=false
 
     while :; do
         case $1 in
@@ -492,7 +497,7 @@ main() {
                 enable_ssl=true
                 ;;
             -a | --autorenew)
-                autorenew_ssl=true
+                # autorenew_ssl=true
                 ;;
                 # TODO: fix this ugly sht
                 # -d|--delete)
