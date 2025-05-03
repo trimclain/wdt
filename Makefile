@@ -3,22 +3,32 @@ SHELL := /bin/bash
 all:
 	@echo 'Type "make help" to see the help menu.'
 
-help: ## Prints this help menu
+help: ## Print this help menu
 	@cat $(MAKEFILE_LIST) | grep -E '^[a-zA-Z_-]+:.*?## .*$$' | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-install: ## Installs wdt
-	@if [[ ! -d $$HOME/.local/bin ]]; then mkdir -p $$HOME/.local/bin && \
+install: ## Install wdt
+	@if [[ ! -d $$HOME/.local/bin ]]; then \
+		mkdir -p $$HOME/.local/bin && \
 		echo 'Created ~/.local/bin. Please add it to $$PATH and run "make install" again.'; \
-		else if [[ ! :$$PATH: == *":$$HOME/.local/bin:"* ]]; \
-		then echo 'Please add ~/.local/bin to $$PATH.'; \
-		else cp ./wdt $$HOME/.local/bin/ && echo "WDT installed successfully."; \
-		fi; fi
+	elif [[ ! :$$PATH: == *":$$HOME/.local/bin:"* ]]; then \
+		echo 'Please add ~/.local/bin to $$PATH.'; \
+	else \
+		cp ./wdt $$HOME/.local/bin/ &&\
+		echo "WDT installed successfully."; \
+	fi
 
-uninstall: ## Uninstalls wdt
-	@if [[ -f $$HOME/.local/bin/wdt ]]; then rm $$HOME/.local/bin/wdt && \
-		echo "WDT uninstalled successfully."; else echo "WDT not found."; fi
+uninstall: ## Uninstall wdt
+	@if [[ -f $$HOME/.local/bin/wdt ]]; then \
+		rm $$HOME/.local/bin/wdt && \
+		echo "WDT uninstalled successfully."; \
+	else \
+		echo "WDT not found."; \
+	fi
 
+###################################################################################################
+######################################### Testing #################################################
+###################################################################################################
 container: ## Build a docker container for testing
 	@if ! command -v docker > /dev/null; then echo "Docker not found, install it first"; \
 		elif [[ $$(docker images | grep wdttest) ]]; then \
