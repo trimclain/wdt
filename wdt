@@ -24,6 +24,10 @@ pprint() {
     printf "${CYAN}[%b]:${RESET} %b\n" "$1" "$2"
 }
 
+wdt_pprint() {
+    printf "${MAGENTA}[wdt]:${RESET} %b\n" "$1"
+}
+
 echo_inline() {
     echo -en "${CYAN}[$1]:${RESET} $2 "
 }
@@ -38,7 +42,13 @@ error() {
 }
 
 # Don't run this script as root
-[ "$EUID" -ne 0 ] || error "Please run this script as a normal user, not as root."
+[ "$EUID" -ne 0 ] || error "Running as root is not Supported."
+
+assert_non_empty() {
+    if [ -z "$1" ]; then
+        error "$2"
+    fi
+}
 
 already_installed() {
     if command -v "$1" > /dev/null; then
@@ -56,7 +66,7 @@ require_sudo_for() {
         # Check if the user will be prompted for sudo credentials
         if ! sudo -n true &> /dev/null; then
             if [[ "$SUDO_PROMPTED" == "false" ]]; then
-                printf "${MAGENTA}[wdt]:${RESET} Please enter your password to install %b.\n" "$1"
+                wdt_pprint "Please enter your password to install $1."
                 SUDO_PROMPTED='true'
             fi
             if ! sudo -v; then
@@ -69,21 +79,16 @@ require_sudo_for() {
 display_help() {
     cat << EOF
 Usage:
-  ${0##*/} [options...] [-n DOMNAME] [-p PORTNUM] [-e EMAIL]
+  ${0##*/} [commands]
 
-OPTIONS:
-  -h, --help             display this help menu
-  -n, --name DOMNAME     pass the name of the domain you want to use
-  -p, --port PORTNUM     pass the port you'll host your website on
-  -s, --secure           enable the ssl certificate using certbot
-  -e, --email EMAIL      pass the email for the ssl certificate for registration and recovery contact
-  -a, --autorenew        schedule automatic renewal of the certificate using crontab
-  -d, --delete           undo everything wdt has done for a specified domain
-  --purge-all            undo everything wdt has done and uninstall every software wdt has installed
+COMMANDS:
+  -h, --help, help          display this help menu
+  -v, --version, version    print current version of wdt
+  i, install                install the domain
+  u, uninstall              uninstall the domain
 EOF
 }
 
-# TODO: add to main
 display_wdt_version() {
     echo "wdt $VERSION"
 }
@@ -133,8 +138,8 @@ install_expressjs() {
 
 #######################################
 # Create app.js to serve the directory "public" to localhost:port
-# Arguments:
-#   port - the port number to redirect to when hitting the server IP
+# Globals:
+#   PORT
 #######################################
 create_appjs() {
     if [ -f ./app.js ]; then
@@ -143,10 +148,12 @@ create_appjs() {
     fi
 
     local directory="public"
-    local app_js_content="// app.js for hosting the directory \"$directory\" on port $1 -- created by wdt\nconst express = require('express')\nconst path = require('path')\n\nconst app = express()\nconst port = $1\nconst directory = \"$directory\"\n\n// express provides a built in way to serve all static files from the directory\napp.use(express.static(directory));\n\napp.listen(port, () => {\n\tconsole.log(\`Express is listening on port \${port}\`)\n})"
-    echo_inline "server" "Creating app.js to serve the directory \"$directory\" to localhost:$1..."
+    local app_js_content="// app.js for hosting the directory \"$directory\" on port $PORT -- created by wdt\nconst express = require('express')\nconst path = require('path')\n\nconst app = express()\nconst port = $PORT\nconst directory = \"$directory\"\n\n// express provides a built in way to serve all static files from the directory\napp.use(express.static(directory));\n\napp.listen(port, () => {\n\tconsole.log(\`Express is listening on port \${port}\`)\n})"
+    echo_inline "server" "Creating app.js to serve the directory \"$directory\" to localhost:$PORT..."
     echo -e "$app_js_content" > app.js
     confirm "Done"
+
+    # TODO: Since I want to server the public dir, maybe I should consider copying files there?
 }
 
 #######################################
@@ -203,41 +210,45 @@ install_nginx() {
 #######################################
 # Create the domain web root directory in /var/www. This isn't necessary,
 # as it is the old way nginx was supposed to be used. Users can ignore this.
-# Arguments:
-#   name - the domain name
+# Globals:
+#   NAME
 #######################################
 optional_nginx_create_var_domain_directory() {
-    # TODO: run only if [ ! -d /var/www/$name/html ]
-    mkdir -p "/var/www/$1/html"
-    pprint "nginx" "Creating the directory /var/www/$1/html..."
+    if [ -d "/var/www/$NAME/html" ]; then
+        return
+    fi
+
+    mkdir -p "/var/www/$NAME/html"
+    pprint "nginx" "Creating the directory /var/www/$NAME/html..."
     # TODO: is this necessary?
     #chmod -R 755 /var/www
     # create sample page for the site
-    pprint "nginx" "Adding a sample index.html to /var/www/$1/html..."
-    index_html_data="<!-- Created by wdt -->\n<html>\n\t<head>\n\t\t<title>Welcome to $1!</title>\n\t</head>\n\t<body>\n\t\t<h1> Success! The $1 server block is working! </h1>\n\t</body>\n</html>"
-    echo -e "$index_html_data" > "/var/www/$1/html/index.html"
+    pprint "nginx" "Adding a sample index.html to /var/www/$NAME/html..."
+    index_html_data="<!-- Created by wdt -->\n<html>\n\t<head>\n\t\t<title>Welcome to $NAME!</title>\n\t</head>\n\t<body>\n\t\t<h1> Success! The $NAME server block is working! </h1>\n\t</body>\n</html>"
+    echo -e "$index_html_data" > "/var/www/$NAME/html/index.html"
 }
 
 #######################################
 # Create Server Block Files for a domain
-# Arguments:
-#   name - the domain name
-#   port - the port number to redirect to when hitting the server IP
+# Globals:
+#   NAME
+#   PORT
 #######################################
 nginx_create_server_block_files() {
-    pprint "nginx" "Creating /etc/nginx/sites-available/$1 and adding the configuration to redirect to port $2..."
-    require_sudo_for "nginx server file for $1"
+    pprint "nginx" "Creating /etc/nginx/sites-available/$NAME and adding the configuration to redirect to port $PORT..."
+    require_sudo_for "nginx server file for $NAME"
 
     # create new server file and correct it's permissions and ownership
-    local nginx_sites_available_file_data="# Virtual Host configuration for $1 -- created by wdt\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $1 www.$1;\n\n\troot /var/www/$1/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$2; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
-    echo -e "$nginx_sites_available_file_data" > "$1"
-    sudo mv "$1" /etc/nginx/sites-available/
-    sudo chown -R root:root "/etc/nginx/sites-available/$1"
-    sudo chmod 644 "/etc/nginx/sites-available/$1"
+    local nginx_sites_available_file_data="# Virtual Host configuration for $NAME -- created by wdt\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $NAME www.$NAME;\n\n\troot /var/www/$NAME/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$PORT; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
+    # TODO: probably better way to do this like sudo tee
+    echo -e "$nginx_sites_available_file_data" > "$NAME"
+    sudo mv "$NAME" /etc/nginx/sites-available/
+    sudo chown -R root:root "/etc/nginx/sites-available/$NAME"
+    sudo chmod 644 "/etc/nginx/sites-available/$NAME"
 
     # create a symlink to sites-enabled
-    pprint "nginx" "Adding a symlink from /etc/nginx/sites-enabled/$1 to /etc/nginx/sites-available/$1..."
-    sudo ln -s "/etc/nginx/sites-available/$1" /etc/nginx/sites-enabled/
+    pprint "nginx" "Adding a symlink from /etc/nginx/sites-enabled/$NAME to /etc/nginx/sites-available/$NAME..."
+    sudo ln -s "/etc/nginx/sites-available/$NAME" /etc/nginx/sites-enabled/
 
     # uncomment one line in order to avoid a possible hash bucket memory problem that can arise from adding additional server names
     sudo sed -i "s|# server_names_hash_bucket_size 64;|server_names_hash_bucket_size 64;|g" /etc/nginx/nginx.conf
@@ -250,13 +261,11 @@ nginx_create_server_block_files() {
 
 #######################################
 # Create Server Block Files for a domain
-# Arguments:
-#   name - the domain name
-#   email - the email to register the certificate at Let's Encrypt
+# Globals:
+#   NAME
+#   EMAIL
 #######################################
-configure_ssl_with_nginx() {
-    # TODO: run only if $enable_ssl is true
-
+setup_ssl_with_nginx() {
     # Install certbot with nginx extension
     if ! command -v certbot > /dev/null; then
         require_sudo_for "certbot"
@@ -276,8 +285,8 @@ configure_ssl_with_nginx() {
 
     # Enable SSL
     require_sudo_for "ssl certificate"
-    pprint "certbot" "Installing the certificate for $1..."
-    sudo certbot --nginx -d "$1" -d "www.$1" --email "$2" --agree-tos --no-eff-email --redirect &> /dev/null
+    pprint "certbot" "Installing the certificate for $NAME..."
+    sudo certbot --nginx -d "$NAME" -d "www.$NAME" --email "$EMAIL" --agree-tos --no-eff-email --redirect &> /dev/null
     confirm "Done"
 }
 
@@ -287,8 +296,6 @@ configure_ssl_with_nginx() {
 #   None
 #######################################
 create_certbot_cronjob() {
-    # TODO: if $autorenew_ssl is true
-
     local tmpfile=$(mktemp)
     # TODO: do I need to use -u "$(logname)" if I don't run in sudo
     crontab -u "$(logname)" -l > "$tmpfile"
@@ -434,109 +441,113 @@ create_certbot_cronjob() {
 #     fi
 # fi
 
-main() {
-    # Initialize all the option variables.
-    # This ensures we are not contaminated by variables from the environment.
-    name=
-    port=
-    email=
-    enable_ssl=false
-    # autorenew_ssl=false
-    # delete_domain=false
-    # purge_it_all=false
+#######################################
+# Install domain
+# Globals:
+#  NAME
+#  PORT
+#  ENABLE_SSL
+#  EMAIL
+#  SSL_CRONJOB
+#######################################
+install_domain() {
+    wdt_pprint "Installing domain $NAME at port $PORT with ssl: $ENABLE_SSL and email: ${EMAIL:-none}, cron: $SSL_CRONJOB"
 
-    while :; do
-        case $1 in
-            -h | -\? | --help)
-                display_help
-                exit 0
-                ;;
-            -n | --name)
-                if [ "$2" ]; then
-                    name=$2
-                    shift
-                else
-                    error '"--name" requires a non-empty argument.'
-                fi
-                ;;
-            --name=?*)
-                name=${1#*=} # Delete everything up to "=" and assign the remainder.
-                ;;
-            --name=) # Handle the case of an empty --name=
-                error '"--name" requires a non-empty argument.'
-                ;;
-            -p | --port)
-                if [ "$2" ]; then
-                    port=$2
-                    shift
-                else
-                    error '"--port" requires a non-empty argument.'
-                fi
-                ;;
-            --port=?*)
-                port=${1#*=} # Delete everything up to "=" and assign the remainder.
-                ;;
-            --port=) # Handle the case of an empty --name=
-                error '"--port" requires a non-empty argument.'
-                ;;
-            -e | --email)
-                if [ "$2" ]; then
-                    email=$2
-                    shift
-                else
-                    error '"--email" requires a non-empty argument.'
-                fi
-                ;;
-            --email=?*)
-                email=${1#*=} # Delete everything up to "=" and assign the remainder.
-                ;;
-            --email=) # Handle the case of an empty --name=
-                error '"--email" requires a non-empty argument.'
-                ;;
-            -s | --secure)
-                enable_ssl=true
-                ;;
-            -a | --autorenew)
-                # autorenew_ssl=true
-                ;;
-                # TODO: fix this ugly sht
-                # -d|--delete)
-                #     delete_domain=true
-                #     ;;
-                # --purge-all)
-                #     purge_it_all=true
-                #     ;;
-            --) # End of all options.
-                shift
-                break
-                ;;
-            -?*)
-                # printf 'WARNING\: Unknown option (ignored): %s\n' "$1" >&2
-                error "invalid option -- \"$1\". Try \"wdt --help\" for more information."
-                ;;
-                # TODO: what to do here? 1 - error out same as above, 2 - use this
-                # as the default way to get the name (very questionable)
-            ?*)
-                # echo "The variable without dash: $1; Doing nothing!"
-                error "invalid option -- \"$1\". Try \"wdt --help\" for more information."
-                ;;
-            *)
-                break
-                ;;
-        esac
-        shift
-    done
+    install_nodejs
+    install_expressjs
 
-    # check for necessary arguments
-    if [ ! "$name" ] || [ ! "$port" ]; then
-        error "Please provide both the DOMAIN and the PORT. Try \"wdt --help\" for more information."
-    elif $enable_ssl && [ ! "$email" ]; then
-        error "Please provide the EMAIL to connect to the certificate for registration and recovery contact."
+    create_appjs
+
+    install_ufw
+    configure_ufw
+
+    install_nginx
+    optional_nginx_create_var_domain_directory
+    nginx_create_server_block_files
+
+    if [[ "$ENABLE_SSL" == "true" ]]; then
+        setup_ssl_with_nginx
+        if [[ "$SSL_CRONJOB" == "true" ]]; then
+            create_certbot_cronjob
+        fi
     fi
 
-    # # FINISH
-    # echo -e "${CYAN}The setup for $name is complete.$NC"
-    # echo -e "${CYAN}Put all your static files in folder \"public\" and use \"pm2 start app.js\" to host your website on localhost:$port.$NC"
+    confirm "The setup for $NAME is complete."
+    confirm "Put all your static files in folder \"public\" and use \"pm2 start app.js\" to host your website on localhost:$PORT."
 }
 
-# main "$@"
+#######################################
+# Uninstall domain
+# Globals:
+#   NAME
+#######################################
+uninstall_domain() {
+    wdt_pprint "Uninstalling domain $NAME..."
+}
+
+main() {
+    case $1 in
+        -h | --help | help)
+            display_help
+            exit 0
+            ;;
+        -v | --version | version)
+            display_wdt_version
+            exit 0
+            ;;
+        i | install)
+            # readonly INSTALL_DOMAIN='true'
+            ;;
+        u | uninstall)
+            readonly UNINSTALL_DOMAIN='true'
+            ;;
+        *)
+            display_help
+            exit 0
+            ;;
+    esac
+
+    read -rp "Enter domain name: " NAME
+    assert_non_empty "$NAME" "Domain name is required."
+
+    if [[ "$UNINSTALL_DOMAIN" == "true" ]]; then
+        read -rp "Are you sure you want to uninstall $NAME? [y/N]: " -n 1 response
+        case "$response" in
+            [yY]) echo && uninstall_domain && exit 0 ;;                # force newline
+            "") echo "Uninstall cancelled. Aborting." && exit 1 ;;     # pressed enter so no need to force newline
+            *) echo -e "\nUninstall cancelled. Aborting." && exit 1 ;; # force newline
+        esac
+    fi
+
+    read -rp "Enter port: " PORT
+    assert_non_empty "$PORT" "Port is required."
+
+    ENABLE_SSL='false'
+    local ssl_response
+    read -rp "Setup SSL? [y/N]: " -n 1 ssl_response
+    case "$ssl_response" in
+        [yY]) readonly ENABLE_SSL='true' && echo ;; # force newline
+        "") ;;                                      # pressed enter so no need to force newline
+        *) echo ;;                                  # force newline
+    esac
+
+    if [[ "$ENABLE_SSL" == "true" ]]; then
+        read -rp "Enter email for SSL: " EMAIL
+        assert_non_empty "$EMAIL" "Email is required for SSL certificate for registration and recovery contact."
+    fi
+
+    SSL_CRONJOB='false'
+    if [[ "$ENABLE_SSL" == "true" ]]; then
+        local ssl_cronjob_response
+        read -rp "Setup cron job to automatically renew SSL certificate? [y/N]: " -n 1 ssl_cronjob_response
+        case "$ssl_cronjob_response" in
+            [yY]) readonly SSL_CRONJOB='true' && echo ;; # force newline
+            "") ;;                                       # pressed enter so no need to force newline
+            *) echo ;;                                   # force newline
+        esac
+    fi
+
+    install_domain
+}
+
+main "$@"

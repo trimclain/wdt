@@ -32,6 +32,7 @@ This part is required to setup the connection between your domain and your linux
 4. Do the same for host "www"
 
 ## Demo
+NOTE: This demo is outdated!  
 Here's a demo showing full deployment of one of my projects. This was done after the configuration [above](https://github.com/trimclain/wdt#setting-up-your-domain).
 
 https://user-images.githubusercontent.com/84108846/172663249-efa38236-df35-48da-a9f9-a67652b3a0f5.mp4
