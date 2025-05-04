@@ -364,134 +364,6 @@ create_certbot_cronjob() {
     fi
 }
 
-# TODO: $purge_it_all
-# if $purge_it_all; then
-#     read -p "Are you sure you want to purge everything wdt has done? [yes|no] " -r
-#     if [[ $REPLY =~ ^[Yy][Ee]?[Ss]?$ ]]; then
-#         # nodejs
-#         if [ -d /home/$(logname)/.n ]; then
-#             # delete all pm2 jobs
-#             sudop "pm2 delete all" &> /dev/null
-#             echo -en "$CC[nodejs]:$NC Deleting n version manager with node.js LTS... "
-#             rm -rf /home/$(logname)/.n
-#             echo "Done"
-#         fi
-#         # ufw
-#         # if [ -f /usr/sbin/ufw ]; then
-#         #     echo -en "$CC[ufw]:$NC Disabling and deleting ufw -- the Uncomplicated Firewall... "
-#         #     sudo ufw disable &> /dev/null
-#         #     sudo apt purge ufw -y &> /dev/null
-#         #     echo "Done"
-#         # fi
-#         # nginx
-#         if [ -f /usr/sbin/nginx ]; then
-#             echo -en "$CC[nginx]:$NC Deleting nginx... "
-#             sudo apt purge nginx nginx-common -y &> /dev/null
-#             # delete everything in /var/www/ except html folder
-#             sudo find /var/www -mindepth 1 ! -regex '^/var/www/html\(/.*\)?' -delete
-#             echo "Done"
-#         fi
-#         # certbot
-#         if [ -f /usr/bin/certbot ]; then
-#             # check if ssl certificate exists
-#             # TODO: delete all certificates (get the list of them)
-#             # if [[ $(sudo certbot certificates 2> /dev/null) == *"$name"* ]]; then
-#             #     echo -en "$CC[certbot]:$NC Deleting the SSL certificate for $name... "
-#             #     sudo certbot delete --cert-name $name &> /dev/null
-#             #     echo "Done"
-#             # fi
-#             echo -en "$CC[certbot]:$NC Deleting certbot... "
-#             sudo apt purge python3-certbot-nginx -y &> /dev/null
-#             echo "Done"
-#         fi
-#         # crontab
-#         # delete the cron job if it exists
-#         # if there is no crontab, this will not error out
-#         if [[ -f /var/spool/cron/crontabs/$(logname) ]]; then
-#             tmpfile="tmp.txt"
-#             crontab -u $(logname) -l > $tmpfile
-#             if grep -qF "certbot renew --quiet" $tmpfile; then
-#                 echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
-#                 sed -i "/certbot renew --quiet/d" $tmpfile
-#                 crontab -u $(logname) $tmpfile && rm $tmpfile
-#                 echo "Done";
-#             else
-#                 rm $tmpfile
-#             fi
-#         fi
-
-#         echo -en "$CC[apt]:$NC Cleaning it up... "
-#         sudo apt autoremove -y &> /dev/null
-#         echo "Done";
-
-#         echo -e "${CYAN}The purge was successfull.$NC"
-#         exit
-#     else
-#         exit 0
-#     fi
-# fi
-
-# TODO: $delete_domain
-# if $delete_domain; then
-
-#     if [ ! "$name" ]; then
-#         die "${RED}ERROR:$NC Please provide the DOMAIN to delete."
-#     fi
-
-#     read -p "Are you sure you want to delete $name? [y|n] " -n 1 -r
-#     echo    # (optional) move to a new line
-#     if [[ $REPLY =~ ^[Yy]$ ]]; then
-
-#         if [ -f /etc/nginx/sites-available/$name ]; then
-#             echo -en "$CC[nginx]:$NC Deleting /etc/nginx/sites-available/$name... "
-#             sudo rm /etc/nginx/sites-available/$name
-#             echo "Done"
-#         else
-#             die "${RED}ERROR:$NC $name entry not found."
-#         fi
-#         # -L check if there is a symlink, no matter broken or not
-#         if [ -L /etc/nginx/sites-enabled/$name ]; then
-#             echo -en "$CC[nginx]:$NC Deleting the symlink /etc/nginx/sites-enabled/$name... "
-#             sudo rm /etc/nginx/sites-enabled/$name
-#             echo "Done"
-#         fi
-#         if [ -d /var/www/$name ]; then
-#             echo -en "$CC[nginx]:$NC Deleting /var/www/$name... "
-#             sudo rm -r /var/www/$name
-#             echo "Done"
-#         fi
-#         sudo systemctl restart nginx
-
-#         # check if ssl certificate exists
-#         if [[ $(sudo certbot certificates 2> /dev/null) == *"$name"* ]]; then
-#             echo -en "$CC[certbot]:$NC Deleting the SSL certificate for $name... "
-#             sudo certbot delete --cert-name $name &> /dev/null
-#             echo "Done"
-#         fi
-
-#         # TODO: fix the case when there are other domains who need this job
-#         # delete the cron job if it exists
-#         # if there is no crontab, this will not error out
-#         if [[ -f /var/spool/cron/crontabs/$(logname) ]]; then
-#             tmpfile="tmp.txt"
-#             crontab -u $(logname) -l > $tmpfile
-#             if grep -qF "certbot renew --quiet" $tmpfile; then
-#                 echo -en "$CC[crontab]:$NC Deleting the cron job for certbot to renew the certificate... "
-#                 sed -i "/certbot renew --quiet/d" $tmpfile
-#                 crontab -u $(logname) $tmpfile && rm $tmpfile
-#                 echo "Done";
-#             else
-#                 rm $tmpfile
-#             fi
-#         fi
-
-#         echo -e "${CYAN}The setup for $name was successfully deleted.$NC"
-#         exit
-#     else
-#         exit 0
-#     fi
-# fi
-
 #######################################
 # Install domain
 # Globals:
@@ -502,7 +374,7 @@ create_certbot_cronjob() {
 #  SSL_CRONJOB
 #######################################
 install_domain() {
-    wdt_pprint "Installing domain $NAME at port $PORT with ssl: $ENABLE_SSL and email: ${EMAIL:-none}, cron: $SSL_CRONJOB"
+    # wdt_pprint "Installing domain $NAME at port $PORT with ssl: $ENABLE_SSL and email: ${EMAIL:-none}, cron: $SSL_CRONJOB"
 
     install_nodejs
     install_expressjs
@@ -532,7 +404,53 @@ install_domain() {
 #   NAME
 #######################################
 uninstall_domain() {
-    wdt_pprint "Uninstalling domain $NAME..."
+    # wdt_pprint "Uninstalling domain $NAME..."
+
+    # nginx
+    if [ ! -f "/etc/nginx/sites-available/$NAME" ]; then
+        error "$NAME entry not found."
+    fi
+    echo_inline "nginx" "Deleting /etc/nginx/sites-available/$NAME... "
+    sudo rm -f "/etc/nginx/sites-available/$NAME"
+    confirm "Done"
+    # -L check if there is a symlink, no matter broken or not
+    if [ -L "/etc/nginx/sites-enabled/$NAME" ]; then
+        echo_inline "nginx" "Deleting the symlink /etc/nginx/sites-enabled/$NAME... "
+        sudo rm -f "/etc/nginx/sites-enabled/$NAME"
+        confirm "Done"
+    fi
+    sudo systemctl reload nginx
+
+    # ssl certificate
+    # WARN: don't run this for fun
+    if [[ $(sudo certbot certificates 2> /dev/null) == *"$NAME"* ]]; then
+        echo_inline "certbot" "Deleting the SSL certificate for $NAME..."
+        sudo certbot delete --cert-name "$NAME" &> /dev/null
+        confirm "Done"
+    fi
+
+    # cron job
+    # TODO: fix the case when there are other domains who need this job
+    # delete the cron job if it exists
+    # if there is no crontab, this will not error out
+    # NOTE: this can help fix where in docker first created cron job deletes the
+    # big info comment from the crontab
+    # FIX: logname is empty in docker, but is the only reliable thing
+    # when running the script in sudo
+    # NOTE: this check will fail without sudo
+    if [[ -f /var/spool/cron/crontabs/$(logname) ]]; then
+        local tmpfile=$(mktemp)
+        crontab -u "$(logname)" -l > "$tmpfile"
+        if grep -qF "certbot renew --quiet" "$tmpfile"; then
+            echo_inline "crontab" "Deleting the cron job for certbot to renew the certificate..."
+            sed -i "/certbot renew --quiet/d" "$tmpfile"
+            crontab -u "$(logname)" "$tmpfile"
+            confirm "Done"
+        fi
+        rm -f "$tmpfile"
+    fi
+
+    confirm "The setup for $NAME was successfully deleted."
 }
 
 main() {
