@@ -42,7 +42,7 @@ error() {
 }
 
 # Don't run this script as root
-[ "$EUID" -ne 0 ] || error "Running as root is not Supported."
+[ "$EUID" -ne 0 ] || error "Running as root is not supported."
 
 assert_non_empty() {
     if [ -z "$1" ]; then
@@ -61,18 +61,25 @@ already_installed() {
 
 SUDO_PROMPTED='false'
 require_sudo_for() {
-    # TODO: any need for EUID check if I do it above?
-    if [[ "$EUID" -ne 0 ]]; then
-        # Check if the user will be prompted for sudo credentials
-        if ! sudo -n true &> /dev/null; then
-            if [[ "$SUDO_PROMPTED" == "false" ]]; then
-                wdt_pprint "Please enter your password to install $1."
-                SUDO_PROMPTED='true'
-            fi
-            if ! sudo -v; then
-                error "Failed to obtain superuser privileges. Exiting."
-            fi
+    # Check if the user will be prompted for sudo credentials
+    if ! sudo -n true &> /dev/null; then
+        if [[ "$SUDO_PROMPTED" == "false" ]]; then
+            wdt_pprint "Please enter your password to install $1."
+            SUDO_PROMPTED='true'
         fi
+        if ! sudo -v; then
+            error "Failed to obtain superuser privileges. Exiting."
+        fi
+    fi
+}
+
+apt_install_needed() {
+    if ! command -v "$1" > /dev/null; then
+        require_sudo_for "$1"
+        # accept optional $2 for custom source of invocation
+        echo_inline "${2:-$1}" "Installing $1..."
+        sudo apt-get install -y "$1" &> /dev/null
+        confirm "Done"
     fi
 }
 
@@ -94,18 +101,42 @@ display_wdt_version() {
 }
 
 #######################################
+# Install Fast Node Manager
+#######################################
+install_fnm() {
+    if command -v node > /dev/null; then
+        return 0
+    fi
+
+    # $FNM_DIR is $FNM_PATH but defined with eval "$(fnm env)"
+    if command -v fnm > /dev/null && [[ -n "$FNM_DIR" ]]; then
+        return 0
+    fi
+
+    apt_install_needed "curl" "nodejs"
+    apt_install_needed "unzip" "nodejs"
+
+    echo_inline "nodejs" "Installing fnm, nodejs version manager..."
+    curl -fsSL https://fnm.vercel.app/install | bash &> /dev/null
+    confirm "Done"
+
+    confirm "In order to apply the changes, open a new terminal or source your shell config."
+    confirm "After that launch WDT again."
+    exit 0
+}
+
+#######################################
 # Install NodeJS LTS
+# Installation is separated into two steps:
+# 1. install_fnm() installs fnm (node version manager)
+# 2. install_nodejs() installs the latest LTS version of nodejs
+# User has to source the shell config to proceed with step 2.
 #######################################
 install_nodejs() {
     already_installed "node" "NodeJS is already installed" && return 0
 
-    echo_inline "nodejs" "Installing n version manager with nodejs LTS..."
-    if [ -z "$N_PREFIX" ]; then
-        curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q
-    else
-        # don't add N_PREFIX to .bashrc or .zshrc
-        curl -sL https://git.io/n-install | N_PREFIX=~/.n bash -s -- -q -n
-    fi
+    echo_inline "nodejs" "Installing NodeJS LTS..."
+    fnm install --lts &> /dev/null
     confirm "Done"
 }
 
@@ -144,16 +175,32 @@ install_expressjs() {
 create_appjs() {
     if [ -f ./app.js ]; then
         pprint "server" "app.js already exists"
-        exit 0
+        return 0
     fi
 
     local directory="public"
-    local app_js_content="// app.js for hosting the directory \"$directory\" on port $PORT -- created by wdt\nconst express = require('express')\nconst path = require('path')\n\nconst app = express()\nconst port = $PORT\nconst directory = \"$directory\"\n\n// express provides a built in way to serve all static files from the directory\napp.use(express.static(directory));\n\napp.listen(port, () => {\n\tconsole.log(\`Express is listening on port \${port}\`)\n})"
+    local app_js_content="// app.js for hosting the directory \"$directory\" on port $PORT -- created by wdt
+const express = require(\"express\")
+const path = require(\"path\")
+
+const app = express()
+const port = $PORT
+const directory = \"$directory\"
+
+// express provides a built in way to serve all static files from the directory
+app.use(express.static(directory));
+
+app.listen(port, () => {
+    console.log(\`Express is listening on port \${port}\`)
+})
+"
+
     echo_inline "server" "Creating app.js to serve the directory \"$directory\" to localhost:$PORT..."
     echo -e "$app_js_content" > app.js
     confirm "Done"
 
     # TODO: Since I want to server the public dir, maybe I should consider copying files there?
+    # Or ask to make directory=cwd?
 }
 
 #######################################
@@ -172,8 +219,9 @@ install_ufw() {
 # Configure Uncomplicated Firewall
 #######################################
 configure_ufw() {
-    if [[ ! $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"en"* ]] || [[ ! $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"C"* ]]; then
-        # Problem: I can't tell if ufw is active or not, e.g. german locale will have status "Inaktiv"
+    if [[ ! $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"en"* ]] ||
+        [[ ! $(locale | grep LANG | cut -d= -f2 | cut -d_ -f1) == *"C"* ]]; then
+        # NOTE: I can't tell if ufw is active or not, e.g. german locale will have status "Inaktiv"
         pprint "ufw" "UFW is not in English. Skipping firewall configuration. Consider configuring it manually later."
         return 1
     fi
@@ -202,49 +250,53 @@ install_nginx() {
     already_installed "nginx" "Nginx is already installed" && return 0
 
     require_sudo_for "nginx"
-    echo_inline "nginx" "Installing nginx..."
+    echo_inline "nginx" "Installing Nginx..."
     sudo apt-get install -y nginx &> /dev/null
     confirm "Done"
 }
 
 #######################################
-# Create the domain web root directory in /var/www. This isn't necessary,
-# as it is the old way nginx was supposed to be used. Users can ignore this.
-# Globals:
-#   NAME
-#######################################
-optional_nginx_create_var_domain_directory() {
-    if [ -d "/var/www/$NAME/html" ]; then
-        return
-    fi
-
-    mkdir -p "/var/www/$NAME/html"
-    pprint "nginx" "Creating the directory /var/www/$NAME/html..."
-    # TODO: is this necessary?
-    #chmod -R 755 /var/www
-    # create sample page for the site
-    pprint "nginx" "Adding a sample index.html to /var/www/$NAME/html..."
-    index_html_data="<!-- Created by wdt -->\n<html>\n\t<head>\n\t\t<title>Welcome to $NAME!</title>\n\t</head>\n\t<body>\n\t\t<h1> Success! The $NAME server block is working! </h1>\n\t</body>\n</html>"
-    echo -e "$index_html_data" > "/var/www/$NAME/html/index.html"
-}
-
-#######################################
-# Create Server Block Files for a domain
+# Create a Virtual Host Configuration File for given domain
 # Globals:
 #   NAME
 #   PORT
 #######################################
 nginx_create_server_block_files() {
-    pprint "nginx" "Creating /etc/nginx/sites-available/$NAME and adding the configuration to redirect to port $PORT..."
-    require_sudo_for "nginx server file for $NAME"
+    require_sudo_for "nginx server configuration file for $NAME"
 
-    # create new server file and correct it's permissions and ownership
-    local nginx_sites_available_file_data="# Virtual Host configuration for $NAME -- created by wdt\n#\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\tserver_name $NAME www.$NAME;\n\n\troot /var/www/$NAME/html;\n\tindex index.html index.htm index.nginx-debian.html;\n\n\tlocation / {\n\t\tproxy_pass http://localhost:$PORT; # whatever port your app runs on\n\t\tproxy_http_version 1.1;\n\t\tproxy_set_header Upgrade \$http_upgrade;\n\t\tproxy_set_header Connection 'upgrade';\n\t\tproxy_set_header Host \$host;\n\t\tproxy_cache_bypass \$http_upgrade;\n\t}\n}"
-    # TODO: probably better way to do this like sudo tee
-    echo -e "$nginx_sites_available_file_data" > "$NAME"
-    sudo mv "$NAME" /etc/nginx/sites-available/
-    sudo chown -R root:root "/etc/nginx/sites-available/$NAME"
-    sudo chmod 644 "/etc/nginx/sites-available/$NAME"
+    # create new server block configuration file
+    pprint "nginx" "Creating /etc/nginx/sites-available/$NAME with configuration to redirect to port $PORT..."
+    # credit: https://pm2.keymetrics.io/docs/tutorials/pm2-nginx-production-setup
+    local nginx_sites_available_file_data="# Virtual Host configuration for $NAME -- created by wdt
+
+upstream ${NAME//./_}_nodejs_upstream {
+    server 127.0.0.1:$PORT; # port your app runs on
+    keepalive 64;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $NAME www.$NAME;
+
+    location / {
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass \$http_upgrade;
+
+        proxy_pass http://${NAME//./_}_nodejs_upstream/;
+        proxy_redirect off;
+        proxy_read_timeout 240s;
+    }
+}
+"
+    echo -e "$nginx_sites_available_file_data" | sudo tee "/etc/nginx/sites-available/$NAME" > /dev/null
 
     # create a symlink to sites-enabled
     pprint "nginx" "Adding a symlink from /etc/nginx/sites-enabled/$NAME to /etc/nginx/sites-available/$NAME..."
@@ -255,7 +307,7 @@ nginx_create_server_block_files() {
 
     # restart nginx for changes to take effect
     echo_inline "nginx" "Restarting nginx..."
-    sudo systemctl restart nginx
+    sudo systemctl reload nginx
     confirm "Done"
 }
 
@@ -286,28 +338,27 @@ setup_ssl_with_nginx() {
     # Enable SSL
     require_sudo_for "ssl certificate"
     pprint "certbot" "Installing the certificate for $NAME..."
+    # NOTE: this will fail if there are no valid DNS records of the domain
     sudo certbot --nginx -d "$NAME" -d "www.$NAME" --email "$EMAIL" --agree-tos --no-eff-email --redirect &> /dev/null
     confirm "Done"
 }
 
 #######################################
 # Create Server Block Files for a domain
-# Arguments:
-#   None
 #######################################
 create_certbot_cronjob() {
-    local tmpfile=$(mktemp)
-    # TODO: do I need to use -u "$(logname)" if I don't run in sudo
-    crontab -u "$(logname)" -l > "$tmpfile"
+    apt_install_needed "cron" "crontab"
 
+    local tmpfile=$(mktemp)
+    crontab -u "$(whoami)" -l > "$tmpfile" 2> /dev/null
     if grep -qF "certbot renew --quiet" "$tmpfile"; then
         rm -f "$tmpfile"
         pprint "crontab" "The cron job for certbot to renew the certificate already exists"
     else
         echo_inline "crontab" "Creating a cron job for certbot to renew the certificate..."
-        # at 5 a.m every day
+        # at 5:00 AM every day
         echo "0 5 * * * /usr/bin/certbot renew --quiet" >> "$tmpfile"
-        crontab -u "$(logname)" "$tmpfile"
+        crontab -u "$(whoami)" "$tmpfile"
         rm -f "$tmpfile"
         confirm "Done"
     fi
@@ -455,16 +506,15 @@ install_domain() {
 
     install_nodejs
     install_expressjs
-
+    # NOTE: pm2 supports 'pm2 start "npm run start"', so I only need app.js for static apps
+    # TODO: extend to serve non static websites
     create_appjs
 
-    install_ufw
-    configure_ufw
+    # install_ufw
+    # configure_ufw
 
     install_nginx
-    optional_nginx_create_var_domain_directory
     nginx_create_server_block_files
-
     if [[ "$ENABLE_SSL" == "true" ]]; then
         setup_ssl_with_nginx
         if [[ "$SSL_CRONJOB" == "true" ]]; then
@@ -506,6 +556,9 @@ main() {
             exit 0
             ;;
     esac
+
+    # this is essential for everything and is a 2 step process
+    install_fnm
 
     read -rp "Enter domain name: " NAME
     assert_non_empty "$NAME" "Domain name is required."
